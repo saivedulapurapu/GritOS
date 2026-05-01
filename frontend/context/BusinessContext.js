@@ -1,0 +1,91 @@
+import React, { createContext, useContext, useState, useEffect } from 'react';
+
+const BusinessContext = createContext();
+
+export const useBusiness = () => useContext(BusinessContext);
+
+export const BusinessProvider = ({ children }) => {
+    const [loading, setLoading] = useState(false);
+    const [data, setData] = useState(null);
+    const [business, setBusiness] = useState({
+        revenue: 1000000,
+        top_platform_rev: 800000,
+        ad_spend: 300000,
+        cogs: 400000,
+        shipping_cost: 50000,
+        rto_cost: 20000,
+        fixed_costs: 150000,
+        cash_in_bank: 500000,
+        stock_units: 5000,
+        cost_per_unit: 400,
+        daily_velocity: 100,
+        top_supplier_spend: 200000,
+        total_purchases: 300000,
+    });
+
+    const [shocks, setShocks] = useState({
+        kak_shock: 0,
+        rev_shock: 0,
+        cogs_shock: 0
+    });
+
+    const [chatMessages, setChatMessages] = useState([
+        { role: 'model', content: "Hello! I'm your GritOS Strategic Partner. I've analyzed your current business metrics and I'm ready to help you optimize for growth and resilience. What's on your mind today?" }
+    ]);
+
+    const fetchAnalysis = async (currentBusiness = business, currentShocks = shocks) => {
+        setLoading(true);
+        try {
+            const response = await fetch('http://localhost:8000/api/analyze', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ...currentBusiness, ...currentShocks })
+            });
+            if (response.ok) {
+                const result = await response.json();
+                setData(result);
+            } else {
+                setData({ error: true, message: "Engine Offline" });
+            }
+        } catch (err) {
+            setData({ error: true, message: "Connection Error" });
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const randomizeMockData = async () => {
+        setLoading(true);
+        try {
+            const response = await fetch('http://localhost:8000/api/mock');
+            const mockBiz = await response.json();
+            setBusiness(mockBiz);
+            fetchAnalysis(mockBiz, shocks);
+        } catch (err) {
+            console.error("Mock fetch error", err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        const handler = setTimeout(() => {
+            fetchAnalysis();
+        }, 300);
+        return () => clearTimeout(handler);
+    }, [shocks, business]);
+
+    return (
+        <BusinessContext.Provider value={{
+            business, setBusiness,
+            shocks, setShocks,
+            data, setData,
+            loading, setLoading,
+            chatMessages, setChatMessages,
+            fetchAnalysis,
+            randomizeMockData
+        }}>
+            {children}
+        </BusinessContext.Provider>
+    );
+};

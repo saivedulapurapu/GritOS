@@ -4,7 +4,7 @@ PY ?= $(if $(wildcard backend/.venv/bin/python),backend/.venv/bin/python,backend
 .PHONY: install test coverage load-data backend frontend run
 
 backend/.venv:
-	python3 -m venv backend/.venv || python -m venv backend/.venv
+	$(if $(shell python3 -c 'import sys' 2>/dev/null && echo ok),python3,python) -m venv backend/.venv
 
 install: backend/.venv
 	$(PY) -m pip install -r backend/requirements-dev.txt

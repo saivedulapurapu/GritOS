@@ -112,7 +112,7 @@ Prerequisites: Python 3.13 (the version tested locally and in CI) and Node.js 18
 ```bash
 git clone https://github.com/saivedulapurapu/GritOS.git
 cd GritOS
-cp .env.example .env          # optional: GROQ_API_KEY, SEC_USER_AGENT
+cp .env.example .env          # optional: GROQ_API_KEY; SEC_USER_AGENT (your own email) to load SEC data
 ```
 
 - **Windows:** `.\run_gritos.ps1` (add `-LoadData` to download and load the SEC data)

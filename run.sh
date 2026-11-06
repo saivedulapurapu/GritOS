@@ -3,7 +3,10 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
-if [ ! -d backend/.venv ]; then python3 -m venv backend/.venv || python -m venv backend/.venv; fi
+# Pick a working interpreter (on Windows 'python3' can be a Microsoft Store stub)
+PYBIN=python3
+"$PYBIN" -c 'import sys' >/dev/null 2>&1 || PYBIN=python
+if [ ! -d backend/.venv ]; then "$PYBIN" -m venv backend/.venv; fi
 if [ -x backend/.venv/bin/python ]; then PY=backend/.venv/bin/python; else PY=backend/.venv/Scripts/python; fi
 "$PY" -m pip install -q -r backend/requirements.txt
 

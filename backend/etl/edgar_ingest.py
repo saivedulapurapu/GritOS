@@ -44,6 +44,7 @@ COMPANIES = {
 TICKERS_URL = "https://www.sec.gov/files/company_tickers.json"
 FACTS_URL = "https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json"
 MIN_REQUEST_INTERVAL_S = 0.15  # < 7 requests/s, under SEC's 10/s limit
+PLACEHOLDER_USER_AGENT_EMAIL = "you@example.com"  # the value shipped in .env.example
 
 # Concept -> XBRL tags in priority order. For each period the first tag with a value wins.
 CONCEPTS = {
@@ -81,6 +82,8 @@ class Fetcher:
     def __init__(self, user_agent, opener=urllib.request.urlopen, sleep=time.sleep, clock=time.monotonic):
         if not user_agent or "@" not in user_agent:
             raise ValueError("SEC_USER_AGENT must be set to a descriptive name with a contact email")
+        if PLACEHOLDER_USER_AGENT_EMAIL in user_agent:
+            raise ValueError("SEC_USER_AGENT still holds the .env.example placeholder; use your own contact email")
         self.user_agent = user_agent
         self._open, self._sleep, self._clock = opener, sleep, clock
         self._last = None

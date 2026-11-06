@@ -272,6 +272,8 @@ def test_fetcher_requires_contact_user_agent():
         ei.Fetcher("")
     with pytest.raises(ValueError):
         ei.Fetcher("no contact here")
+    with pytest.raises(ValueError, match="placeholder"):
+        ei.Fetcher("GritOS research you@example.com")
 
 
 def test_fetcher_sends_user_agent_and_rate_limits():

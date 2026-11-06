@@ -190,3 +190,60 @@ def test_summarize_hand_calculated():
     assert o["median_abs_error_pct_revenue_after_addback"] == 4.0   # median of 3, 5
     assert s["by_company"]["A"]["quarters"] == 2
     assert summarize([])["overall"] == {"quarters": 0}
+
+
+# ---------- opex is counted exactly once: fixed_costs + ad_spend == (revenue - COGS - operating income) / 3 ----------
+# quarter(): revenue 300, COGS 120, operating income 30 -> opex 150 / quarter = 50 / month
+
+AD_SOURCES = {
+    # name: overrides selecting the ad-spend source, and the status it must produce
+    "annual_advertising": ({"advertising_annual": 240.0, "marketing": 45.0}, "DERIVED"),  # 240 / 12 = 20
+    "marketing_proxy": ({"advertising_annual": None, "marketing": 45.0}, "PROXY"),        # 45 / 3 = 15
+    "none": ({"advertising_annual": None, "marketing": None}, "ASSUMED"),                 # 0
+}
+
+
+@pytest.mark.parametrize(
+    "source, expected_ad, expected_fixed",
+    [("annual_advertising", 20, 30), ("marketing_proxy", 15, 35), ("none", 0, 50)],
+)
+def test_opex_counted_once_for_each_ad_source(source, expected_ad, expected_fixed):
+    overrides, status = AD_SOURCES[source]
+    m = map_quarter(quarter(**overrides), "Test Co")
+    i = m["inputs"]
+    assert m["provenance"]["ad_spend"]["status"] == status
+    assert (i["ad_spend"], i["fixed_costs"]) == (pytest.approx(expected_ad), pytest.approx(expected_fixed))
+    assert i["fixed_costs"] + i["ad_spend"] == pytest.approx((300 - 120 - 30) / 3)    # 50: opex once
+    assert m["adjustments"] == []
+    # and the engine's net is therefore operating income / 3 = 10, whatever the source
+    net = process_business_state(FullBusinessState(**i))["baseline"]["net_profit"]
+    assert net == pytest.approx(30 / 3)
+
+
+@pytest.mark.parametrize(
+    "source, overrides",
+    [
+        ("annual_advertising", {"advertising_annual": 1200.0}),             # 1200 / 12 = 100 > opex 50
+        ("marketing_proxy", {"advertising_annual": None, "marketing": 300.0}),  # 300 / 3 = 100 > opex 50
+    ],
+)
+def test_capped_ad_spend_still_counts_opex_once(source, overrides):
+    # Ad spend larger than total opex is capped at opex; fixed costs become 0; the identity holds
+    m = map_quarter(quarter(**overrides), "Test Co")
+    i = m["inputs"]
+    assert i["ad_spend"] == pytest.approx(50) and i["fixed_costs"] == 0
+    assert i["fixed_costs"] + i["ad_spend"] == pytest.approx(50)
+    assert len(m["adjustments"]) == 1
+
+
+@pytest.mark.parametrize("source", list(AD_SOURCES))
+def test_negative_opex_floors_both_at_zero_and_is_flagged(source):
+    # Operating income 200 > gross profit 180 (e.g. a one-off gain): opex = (300 - 120 - 200) / 3 = -6.67 / month.
+    # Costs cannot be negative, so ad spend and fixed costs are both 0 and the identity is knowingly broken;
+    # the mapping records adjustments so the data-quality report raises a warning.
+    overrides, _status = AD_SOURCES[source]
+    m = map_quarter(quarter(operating_income=200.0, **overrides), "Test Co")
+    i = m["inputs"]
+    assert (i["ad_spend"], i["fixed_costs"]) == (0, 0)
+    assert i["fixed_costs"] + i["ad_spend"] != pytest.approx((300 - 120 - 200) / 3)
+    assert any("negative operating expenses" in a for a in m["adjustments"])

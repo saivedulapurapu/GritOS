@@ -12,9 +12,9 @@ import capital_lock
 import dependency_index
 import fragility_model
 import llm_advisor
-import survival
+import runway_decay
 
-app = FastAPI(title="GritOS Survival Intelligence API")
+app = FastAPI(title="GritOS Runway Intelligence API")
 
 @app.get("/")
 async def health_check():
@@ -83,25 +83,33 @@ def process_business_state(state: FullBusinessState):
     # 3. Capital Lock
     lock_data = capital_lock.calculate_capital_lock(state.stock_units, state.cost_per_unit, state.daily_velocity)
     
-    # 4. Fragility & Sensitivity
-    # Runways are None when there is no cash burn; models get a numeric stand-in.
+    # 4. Fragility tier (baseline structure) & shock sensitivity
+    # Runways are None when there is no cash burn; the Grit penalty below needs numbers.
     ad_spend_ratio = state.ad_spend / state.revenue if state.revenue > 0 else 0
     b_runway = financial_engine.runway_as_number(bottom_line['runway_months'])
     s_runway = financial_engine.runway_as_number(shock_results['runway'])
     total_shock_pct = state.kak_shock + state.rev_shock + state.cogs_shock
 
-    fragility = fragility_model.classify_fragility(baseline['margin_percent'], bottom_line['burn_rate'], b_runway, ad_spend_ratio)
+    fragility = fragility_model.classify_fragility(baseline['margin_percent'], bottom_line['runway_months'], ad_spend_ratio)
     sensitivity = fragility_model.get_shock_sensitivity(bottom_line['runway_months'], shock_results['runway'], total_shock_pct)
     fragility['sensitivity'] = sensitivity
 
-    # 5. Survival
-    # Scenario survival uses the SHOCKED runway; baseline survival (no shock) feeds the Grit Score.
-    survival_prob = survival.calculate_survival_probability(s_runway, fragility['class'], sensitivity)
-    trajectory = survival.calculate_survival_trajectory(s_runway, fragility['class'], sensitivity)
-    baseline_survival_prob = survival.calculate_survival_probability(b_runway, fragility['class'], 0)
+    # Same rules on the shocked figures: how the business looks under this scenario.
+    stressed = fragility_model.classify_fragility(
+        shock_results['margin_percent'], shock_results['runway'], shock_results['ad_spend_ratio']
+    )
+    fragility['stressed_class'] = stressed['class']
+    fragility['stressed_reasons'] = stressed['reasons']
 
-    # Grit Score: weighted average of fragility score and baseline survival
-    baseline_grit = round((fragility['score'] * 0.5) + (baseline_survival_prob * 0.5), 1)
+    # 5. Runway-decay estimate: λ = runway x BASELINE tier factor (<= runway).
+    # Sensitivity is reported, not used here. The scenario estimate uses the SHOCKED
+    # runway; the baseline estimate (no shock) feeds the Grit Score.
+    runway_decay_estimate = runway_decay.calculate_runway_decay_estimate(shock_results['runway'], fragility['class'])
+    trajectory = runway_decay.calculate_runway_decay_trajectory(shock_results['runway'], fragility['class'])
+    baseline_runway_decay_estimate = runway_decay.calculate_runway_decay_estimate(bottom_line['runway_months'], fragility['class'])
+
+    # Grit Score: weighted average of fragility score and baseline runway-decay estimate
+    baseline_grit = round((fragility['score'] * 0.5) + (baseline_runway_decay_estimate * 0.5), 1)
     
     # Calculated Displayed Grit
     shocked_grit = baseline_grit
@@ -135,8 +143,8 @@ def process_business_state(state: FullBusinessState):
         "inventory": lock_data,
         "fragility": fragility,
         "dependency": dependency,
-        "survival_prob": survival_prob,
-        "baseline_survival_prob": baseline_survival_prob,
+        "runway_decay_estimate": runway_decay_estimate,
+        "baseline_runway_decay_estimate": baseline_runway_decay_estimate,
         "trajectory": trajectory,
         "grit_score": round(max(0, final_grit), 1),
         "baseline_grit": baseline_grit,

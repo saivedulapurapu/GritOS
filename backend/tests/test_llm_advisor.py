@@ -18,7 +18,7 @@ class FakeGroq:
         return iter([SimpleNamespace(choices=[SimpleNamespace(delta=delta)])])
 
 
-METRICS = {"grit_score": 40.0, "survival_prob": 38.2, "baseline": {"runway_months": 2.5}}
+METRICS = {"grit_score": 40.0, "runway_decay_estimate": 38.2, "baseline": {"runway_months": 2.5}}
 HELLO = [{"role": "user", "content": "hi"}]
 
 
@@ -26,13 +26,13 @@ def system_prompt(fake):
     return fake.calls[0]["messages"][0]["content"]
 
 
-def test_survival_prob_not_scaled_again(monkeypatch):
-    # survival_prob is already 0-100: 38.2 must appear as 38.2%, not 3820%
+def test_estimate_not_scaled_again(monkeypatch):
+    # runway_decay_estimate is already 0-100: 38.2 must appear as 38.2%, not 3820%
     fake = FakeGroq()
     monkeypatch.setattr(llm_advisor, "client", fake)
     out = "".join(llm_advisor.chat_with_advisor(HELLO, METRICS))
     assert out == "ok"
-    assert "Survival Probability: 38.2%" in system_prompt(fake)
+    assert "Runway-Decay Estimate (heuristic, not a fitted survival model): 38.2%" in system_prompt(fake)
     assert "3820" not in system_prompt(fake)
 
 

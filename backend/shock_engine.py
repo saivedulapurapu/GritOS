@@ -32,5 +32,8 @@ def apply_shocks(baseline_data, kak_inc_pct, revenue_drop_pct, cogs_inc_pct):
     return {
         "rev": round(new_rev, 2),
         "net_profit": bottom_line['net_profit'],
-        "runway": bottom_line['runway_months']  # None = no cash burn
+        "runway": bottom_line['runway_months'],  # None = no cash burn
+        # Inputs for the stressed fragility tier
+        "margin_percent": metrics['margin_percent'],
+        "ad_spend_ratio": (new_cac / new_rev) if new_rev > 0 else 0,
     }

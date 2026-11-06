@@ -135,6 +135,22 @@ export default function StressTest() {
                             </div>
                         </div>
                     </div>
+
+                    <div className="mt-4 p-6 rounded-2xl bg-white/5 border border-white/5">
+                        <div className="text-xs text-gray-500 uppercase mb-2">Fragility Tier</div>
+                        <div className="text-lg font-bold">
+                            Baseline: {data?.fragility?.class || 'N/A'}
+                            <span className="text-gray-500"> → </span>
+                            <span className={data?.fragility?.stressed_class === 'Critical' ? 'text-red-400' : ''}>
+                                Under stress: {data?.fragility?.stressed_class || 'N/A'}
+                            </span>
+                        </div>
+                        {data?.fragility?.stressed_reasons?.length > 0 && (
+                            <ul className="mt-2 text-xs text-gray-400 list-disc list-inside">
+                                {data.fragility.stressed_reasons.map((reason) => <li key={reason}>{reason}</li>)}
+                            </ul>
+                        )}
+                    </div>
                 </div>
             </div>
         </Layout>

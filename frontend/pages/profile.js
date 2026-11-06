@@ -89,7 +89,7 @@ export default function Profile() {
                 </div>
                 <div>
                     <h4 className="font-bold text-sm text-white">Pro Tip</h4>
-                    <p className="text-sm text-gray-400">Updating these baseline values recalculates your overall Grit Score and Survival Trajectory across the entire system.</p>
+                    <p className="text-sm text-gray-400">Updating these baseline values recalculates your overall Grit Score and Runway-Decay Curve across the entire system.</p>
                 </div>
             </div>
         </Layout>

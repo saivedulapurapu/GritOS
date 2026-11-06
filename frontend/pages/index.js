@@ -7,7 +7,7 @@ import { TrendingUp, AlertCircle, CheckCircle2, Zap } from 'lucide-react';
 export default function Overview() {
     const { data, loading, randomizeMockData } = useBusiness();
 
-    const baseProb = data?.survival_prob || 80;
+    const baseProb = data?.runway_decay_estimate || 80;
     const chartData = data?.trajectory || [
         { name: 'Month 1', prob: baseProb },
         { name: 'Month 2', prob: Math.max(0, baseProb - 5) },
@@ -23,7 +23,7 @@ export default function Overview() {
                 <div className="bg-[#1e293b] p-4 rounded-xl border border-white/10 shadow-2xl">
                     <p className="text-sm font-bold text-gray-400 mb-1">{payload[0].payload.name}</p>
                     <p className="text-xl font-black text-white">
-                        {payload[0].value}% Survival
+                        {payload[0].value}% runway-decay estimate
                     </p>
                 </div>
             );
@@ -39,7 +39,7 @@ export default function Overview() {
             <div className="flex justify-between items-center mb-10">
                 <div>
                     <h1 className="text-4xl font-black tracking-tight mb-2">Business Health Overview</h1>
-                    <p className="text-gray-400">Real-time intelligence and survival projection.</p>
+                    <p className="text-gray-400">Real-time intelligence and runway projection.</p>
                 </div>
                 <button
                     onClick={randomizeMockData}
@@ -72,12 +72,16 @@ export default function Overview() {
 
                         <div className="grid grid-cols-2 gap-4">
                             <div className="p-4 rounded-2xl bg-white/5 border border-white/5">
-                                <div className="text-xs text-gray-500 uppercase mb-1">Survival Probability</div>
-                                <div className="text-2xl font-bold">{data?.survival_prob}%</div>
+                                <div className="text-xs text-gray-500 uppercase mb-1">Runway-Decay Estimate (6 mo)</div>
+                                <div className="text-2xl font-bold">{data?.runway_decay_estimate}%</div>
                             </div>
                             <div className="p-4 rounded-2xl bg-white/5 border border-white/5">
-                                <div className="text-xs text-gray-500 uppercase mb-1">Fragility Class</div>
-                                <div className="text-2xl font-bold">{data?.fragility?.class || 'N/A'}</div>
+                                <div className="text-xs text-gray-500 uppercase mb-1">Fragility Tier</div>
+                                <div className="text-lg font-bold">
+                                    Baseline: {data?.fragility?.class || 'N/A'}
+                                    <span className="text-gray-500"> → </span>
+                                    Under stress: {data?.fragility?.stressed_class || 'N/A'}
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -111,12 +115,12 @@ export default function Overview() {
                 </div>
             </div>
 
-            {/* Survival Trajectory */}
+            {/* Runway-Decay Curve */}
             <div className="p-8 rounded-3xl bg-[#11131a] border border-white/5">
                 <div className="flex items-center justify-between mb-8">
                     <div>
-                        <h3 className="text-xl font-bold">Survival Trajectory</h3>
-                        <p className="text-sm text-gray-500">Predicted resilience over 6 month horizon.</p>
+                        <h3 className="text-xl font-bold">Runway-Decay Curve</h3>
+                        <p className="text-sm text-gray-500">Heuristic estimate of staying solvent, months 1–6 (not a fitted survival model).</p>
                     </div>
                 </div>
                 <div className="h-[300px] w-full">

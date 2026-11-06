@@ -32,7 +32,7 @@ def test_no_shock_reproduces_baseline():
 
 def test_revenue_drop_scales_costs_with_volume_ASSUMPTION():
     # MODEL ASSUMPTION: ad spend scales with volume. Debatable — in reality ad spend
-    #  is often fixed short-term, so CAC rises when demand falls. Revisit in Fix 2.
+    #  is often fixed short-term, so CAC rises when demand falls. Revisit in Fix 3.
     # vol = 1 - 0.50 = 0.5
     # rev 500,000 | ads 150,000 | COGS 200,000 | ship 25,000 | RTO 10,000
     # contribution = 500,000 - 385,000 = 115,000; fixed costs do NOT scale
@@ -51,6 +51,21 @@ def test_ad_cost_shock_only_raises_ad_spend():
     assert r["rev"] == money(1_000_000)
     assert r["net_profit"] == money(-220_000)
     assert r["runway"] == money(2.27)
+
+
+def test_returns_shocked_margin_and_ad_ratio():
+    # ads 600,000 on revenue 1,000,000 -> ad ratio 0.6
+    # contribution -70,000 / 1,000,000 -> margin -7.0%
+    r = apply_shocks(BASE, 100, 0, 0)
+    assert r["ad_spend_ratio"] == pytest.approx(0.6)
+    assert r["margin_percent"] == pytest.approx(-7.0)
+
+
+def test_zero_revenue_ad_ratio_guarded():
+    # 100% revenue drop -> revenue 0 -> ad ratio 0 (no ZeroDivisionError), margin 0
+    r = apply_shocks(BASE, 0, 100, 0)
+    assert r["ad_spend_ratio"] == 0
+    assert r["margin_percent"] == 0
 
 
 def test_cogs_shock_only_raises_cogs():

@@ -30,7 +30,7 @@ def get_working_model(system_instruction=None):
 
 def generate_strategic_advice(metrics):
     """Dashboard static bullets with heavy caching."""
-    cache_key = f"{round(metrics.get('grit_score', 0))}_{round(metrics.get('survival_prob', 0)*10)}"
+    cache_key = f"{round(metrics.get('grit_score', 0))}_{round(metrics.get('runway_decay_estimate', 0)*10)}"
     if cache_key in _advice_cache:
         return _advice_cache[cache_key]
 
@@ -39,7 +39,7 @@ def generate_strategic_advice(metrics):
 
     try:
         sys_prompt = "You are the GritOS Strategy Engine. Give 3 short D2C strategy bullets."
-        prompt = f"Grit: {metrics.get('grit_score')}, Survival: {metrics.get('survival_prob')}."
+        prompt = f"Grit: {metrics.get('grit_score')}, 6-month runway-decay estimate: {metrics.get('runway_decay_estimate')}%."
         
         response = client.chat.completions.create(
             model=MODEL_CASCADE[0],
@@ -90,14 +90,14 @@ def chat_with_advisor(messages, metrics):
     CONTEXT: You are inside GritOS, a high-end resilience platform.
     STATUS:
     - Grit Score: {metrics.get('grit_score')}
-    - Survival Probability: {metrics.get('survival_prob', 0)}%
+    - 6-month Runway-Decay Estimate (heuristic, not a fitted survival model): {metrics.get('runway_decay_estimate', 0)}%
     - Cash Runway: {runway_text}.
     
     BEHAVIOR:
     1. Professional, elite, and predictive.
-    2. Do NOT provide generic advice. Be specific to the Grit Score and survival state.
+    2. Do NOT provide generic advice. Be specific to the Grit Score and runway-decay estimate.
     3. If Grit Score is low, be urgent and focused on capital preservation.
-    4. If Survival is high, suggest aggressive growth or optimization.
+    4. If the runway-decay estimate is high, suggest aggressive growth or optimization.
     5. Always be interactive—end with a brief, relevant follow-up question.
     6. Use markdown for structure (bold, lists, tables) but keep it punchy.
     """

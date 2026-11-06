@@ -1,14 +1,14 @@
 import math
 
+from financial_engine import runway_as_number
+
 def calculate_survival_probability(runway_months, fragility_class, shock_sensitivity):
     """
     Component 5: Survival Analysis for D2C
     Predicts probability of business becoming bankrupt/failing within 6 months.
+    runway_months: months of cash left, or None for no cash burn.
     """
-    try:
-        runway_val = 999.0 if runway_months == "Infinite" else float(runway_months)
-    except:
-        runway_val = 0.0
+    runway_val = runway_as_number(runway_months)
 
     # Base survival horizon: 6 months
     t = 6 
@@ -39,11 +39,9 @@ def calculate_survival_probability(runway_months, fragility_class, shock_sensiti
 def calculate_survival_trajectory(runway_months, fragility_class, shock_sensitivity):
     """
     Computes genuine mathematical trajectory over 6 months using exponential decay.
+    runway_months: months of cash left, or None for no cash burn.
     """
-    try:
-        runway_val = 999.0 if runway_months == "Infinite" else float(runway_months)
-    except:
-        runway_val = 0.0
+    runway_val = runway_as_number(runway_months)
 
     lambd = runway_val
     if fragility_class == "Critical":

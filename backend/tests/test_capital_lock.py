@@ -45,9 +45,9 @@ def test_threshold_boundaries_are_exclusive(units, expected_days, expected_level
 
 
 def test_zero_velocity_is_guarded():
-    # velocity 0 -> days = 999 sentinel (no ZeroDivisionError) -> RED
+    # velocity 0 -> stock never sells through -> days None (no ZeroDivisionError) -> RED
     r = calculate_capital_lock(1_000, 100, 0)
-    assert r["days_to_liquidate"] == 999
+    assert r["days_to_liquidate"] is None
     assert r["risk_level"] == "RED"
 
 

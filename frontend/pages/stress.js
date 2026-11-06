@@ -11,14 +11,15 @@ export default function StressTest() {
         setShocks(prev => ({ ...prev, [field]: parseFloat(value) || 0 }));
     };
 
+    // Backend sends runway = null when there is no cash burn; draw it as a 24-month bar.
     const normalizeRunway = (val) => {
-        if (val === "Infinite" || val === 999) return 24;
+        if (val === null) return 24;
         return parseFloat(val) || 0;
     };
 
     const runwayData = [
-        { name: 'Baseline', value: normalizeRunway(data?.baseline?.runway_months), color: '#3b82f6' },
-        { name: 'Shock Impact', value: normalizeRunway(data?.simulation?.runway), color: '#ef4444' }
+        { name: 'Baseline', value: normalizeRunway(data?.baseline?.runway_months), infinite: data?.baseline?.runway_months === null, color: '#3b82f6' },
+        { name: 'Shock Impact', value: normalizeRunway(data?.simulation?.runway), infinite: data?.simulation?.runway === null, color: '#ef4444' }
     ];
 
     const b_val = normalizeRunway(data?.baseline?.runway_months);
@@ -28,12 +29,12 @@ export default function StressTest() {
     const CustomTooltip = ({ active, payload }) => {
         if (active && payload && payload.length) {
             const val = payload[0].value;
-            const name = payload[0].payload.name;
+            const { name, infinite } = payload[0].payload;
             return (
                 <div className="bg-[#1e293b] p-4 rounded-xl border border-white/10 shadow-2xl">
                     <p className="text-sm font-bold text-gray-400 mb-1">{name}</p>
                     <p className="text-xl font-black text-white">
-                        {val >= 24 ? 'Infinite (Sustainable)' : `${val.toFixed(1)} Months`}
+                        {infinite ? '∞ Infinite (no cash burn)' : `${val.toFixed(1)} Months`}
                     </p>
                 </div>
             );
@@ -130,7 +131,7 @@ export default function StressTest() {
                         <div className="p-6 rounded-2xl bg-white/5 border border-white/5 text-center">
                             <div className="text-xs text-gray-500 uppercase mb-2">Shock Sensitivity</div>
                             <div className="text-4xl font-black text-purple-400">
-                                {data?.fragility?.sensitivity || '0.0'}
+                                {(data?.fragility?.sensitivity ?? 0).toFixed(3)}
                             </div>
                         </div>
                     </div>

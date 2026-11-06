@@ -45,20 +45,20 @@ def test_margin_percent_rounded_to_two_dp():
 # ---------- calculate_net_metrics ----------
 
 def test_profitable_business_has_no_burn_and_infinite_runway():
-    # net = 230,000 - 150,000 = 80,000 (profit)  ->  burn 0  ->  runway "Infinite"
+    # net = 230,000 - 150,000 = 80,000 (profit)  ->  burn 0  ->  runway None (no burn)
     r = calculate_net_metrics(230_000, 150_000, 500_000)
     assert r["net_profit"] == money(80_000)
     assert r["burn_rate"] == 0
-    assert r["runway_months"] == "Infinite"
+    assert r["runway_months"] is None
     assert r["is_profitable"] is True
 
 
 def test_breakeven_counts_as_profitable():
-    # net = 150,000 - 150,000 = 0  ->  is_profitable (>= 0), burn 0, runway "Infinite"
+    # net = 150,000 - 150,000 = 0  ->  is_profitable (>= 0), burn 0, runway None (no burn)
     r = calculate_net_metrics(150_000, 150_000, 500_000)
     assert r["net_profit"] == money(0)
     assert r["burn_rate"] == 0
-    assert r["runway_months"] == "Infinite"
+    assert r["runway_months"] is None
     assert r["is_profitable"] is True
 
 

@@ -2,7 +2,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Dict, Any
 
 # Import local modules
@@ -67,7 +67,7 @@ class ChatMessage(BaseModel):
     content: str
 
 class ChatRequest(BaseModel):
-    messages: list[ChatMessage]
+    messages: list[ChatMessage] = Field(min_length=1)  # empty list -> 422, not IndexError
     state: FullBusinessState
 
 def process_business_state(state: FullBusinessState):
@@ -83,20 +83,25 @@ def process_business_state(state: FullBusinessState):
     # 3. Capital Lock
     lock_data = capital_lock.calculate_capital_lock(state.stock_units, state.cost_per_unit, state.daily_velocity)
     
-    # 4. Fragility & Sensitivity (Normalize types)
+    # 4. Fragility & Sensitivity
+    # Runways are None when there is no cash burn; models get a numeric stand-in.
     ad_spend_ratio = state.ad_spend / state.revenue if state.revenue > 0 else 0
-    b_runway = 999.0 if bottom_line['runway_months'] == "Infinite" else float(bottom_line['runway_months'])
-    s_runway = float(shock_results['runway'])
-    
+    b_runway = financial_engine.runway_as_number(bottom_line['runway_months'])
+    s_runway = financial_engine.runway_as_number(shock_results['runway'])
+    total_shock_pct = state.kak_shock + state.rev_shock + state.cogs_shock
+
     fragility = fragility_model.classify_fragility(baseline['margin_percent'], bottom_line['burn_rate'], b_runway, ad_spend_ratio)
-    sensitivity = fragility_model.get_shock_sensitivity(b_runway, s_runway, state.rev_shock)
-    
+    sensitivity = fragility_model.get_shock_sensitivity(bottom_line['runway_months'], shock_results['runway'], total_shock_pct)
+    fragility['sensitivity'] = sensitivity
+
     # 5. Survival
-    survival_prob = survival.calculate_survival_probability(b_runway, fragility['class'], sensitivity)
-    trajectory = survival.calculate_survival_trajectory(b_runway, fragility['class'], sensitivity)
-    
-    # Grit Score: weighted average of fragility score and survival
-    baseline_grit = round((fragility['score'] * 0.5) + (survival_prob * 0.5), 1)
+    # Scenario survival uses the SHOCKED runway; baseline survival (no shock) feeds the Grit Score.
+    survival_prob = survival.calculate_survival_probability(s_runway, fragility['class'], sensitivity)
+    trajectory = survival.calculate_survival_trajectory(s_runway, fragility['class'], sensitivity)
+    baseline_survival_prob = survival.calculate_survival_probability(b_runway, fragility['class'], 0)
+
+    # Grit Score: weighted average of fragility score and baseline survival
+    baseline_grit = round((fragility['score'] * 0.5) + (baseline_survival_prob * 0.5), 1)
     
     # Calculated Displayed Grit
     shocked_grit = baseline_grit
@@ -117,9 +122,10 @@ def process_business_state(state: FullBusinessState):
     if dep_max > 80: dep_penalty = 0.80
     elif dep_max > 50: dep_penalty = 0.90
     
+    days_to_liquidate = lock_data['days_to_liquidate']  # None = no sales velocity
     inv_penalty = 1.0
-    if lock_data['days_to_liquidate'] > 60: inv_penalty = 0.85
-    elif lock_data['days_to_liquidate'] > 30: inv_penalty = 0.95
+    if days_to_liquidate is None or days_to_liquidate > 60: inv_penalty = 0.85
+    elif days_to_liquidate > 30: inv_penalty = 0.95
     
     final_grit = shocked_grit * dep_penalty * inv_penalty
     
@@ -130,6 +136,7 @@ def process_business_state(state: FullBusinessState):
         "fragility": fragility,
         "dependency": dependency,
         "survival_prob": survival_prob,
+        "baseline_survival_prob": baseline_survival_prob,
         "trajectory": trajectory,
         "grit_score": round(max(0, final_grit), 1),
         "baseline_grit": baseline_grit,

@@ -92,7 +92,7 @@ export default function Overview() {
                                 <div className="p-2 rounded-lg bg-blue-500/10 text-blue-400"><TrendingUp size={18} /></div>
                                 <span className="text-sm text-gray-400">Cash Runway</span>
                             </div>
-                            <span className="font-bold">{data?.baseline?.runway_months === 999 ? 'Infinite' : `${data?.baseline?.runway_months || 0} Months`}</span>
+                            <span className="font-bold">{data?.baseline?.runway_months === null ? '∞ Infinite' : `${data?.baseline?.runway_months ?? 0} Months`}</span>
                         </div>
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-3">

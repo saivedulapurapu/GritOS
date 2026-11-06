@@ -1,6 +1,8 @@
 import numpy as np
 from sklearn.ensemble import RandomForestClassifier
 
+from financial_engine import runway_as_number
+
 # Simulated training data for supervised learning
 # Features: [Margin%, RunwayMonths, AdSpendRatio]
 # Classes: 0: Anti-Fragile, 1: Sensitive, 2: Critical
@@ -24,10 +26,7 @@ def classify_fragility(margin_pct, burn_rate, runway, ad_spend_ratio=0.2):
     Component 6: Fragility Scoring Layer (ML Classification)
     Classifies business health into Anti-Fragile, Sensitive, or Critical.
     """
-    try:
-        runway_val = 999.0 if runway == "Infinite" else float(runway)
-    except:
-        runway_val = 0.0
+    runway_val = runway_as_number(runway)
 
     features = np.array([[margin_pct, runway_val, ad_spend_ratio]])
     probs = clf.predict_proba(features)[0]
@@ -43,25 +42,25 @@ def classify_fragility(margin_pct, burn_rate, runway, ad_spend_ratio=0.2):
     result['confidence'] = round(float(np.max(probs)) * 100, 1)
     return result
 
-def get_shock_sensitivity(baseline_runway, shock_runway, shock_percent):
+# Runway beyond this horizon counts as "safe". Capping both runways here puts an
+# infinite (None) runway on the same scale as a long finite one.
+SENSITIVITY_HORIZON_MONTHS = 12.0
+
+
+def get_shock_sensitivity(baseline_runway, shock_runway, total_shock_pct):
     """
     Component 7: Shock Sensitivity Score
-    Formula: Change in runway / Shock %
-    Measures how much business stability degrades under stress.
+    Formula: months of runway lost / total shock, where total shock is the sum of
+    the revenue-drop, ad-cost and COGS shock percentages.
+    Runways (None = no cash burn) are capped at SENSITIVITY_HORIZON_MONTHS.
+    A shock that lengthens runway scores 0, never negative.
     """
-    if shock_percent == 0:
+    if total_shock_pct <= 0:
         return 0
-        
-    try:
-        b_val = 999.0 if baseline_runway == "Infinite" else float(baseline_runway)
-        s_val = 999.0 if shock_runway == "Infinite" else float(shock_runway)
-    except:
-        return 0
-        
-    runway_delta = abs(b_val - s_val)
-    # Avoid division by zero and handle infinity
-    if runway_delta > 900: # One was infinite, other likely wasn't
-        runway_delta = 12 # Cap delta at 1 year for sensitivity calc
-        
-    sensitivity = runway_delta / shock_percent
-    return round(sensitivity, 2)
+
+    horizon = SENSITIVITY_HORIZON_MONTHS
+    b_val = horizon if baseline_runway is None else min(float(baseline_runway), horizon)
+    s_val = horizon if shock_runway is None else min(float(shock_runway), horizon)
+
+    runway_lost = max(0.0, b_val - s_val)
+    return round(runway_lost / total_shock_pct, 3)

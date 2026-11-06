@@ -22,11 +22,12 @@ BASE = {
 
 def test_no_shock_reproduces_baseline():
     # No shocks -> same as baseline: rev 1,000,000, net +80,000
-    # runway sentinel to be standardised in Fix 1
+    # Profitable -> no cash burn -> runway None (standardised sentinel, Fix 1)
     r = apply_shocks(BASE, 0, 0, 0)
     assert r["rev"] == money(1_000_000)
     assert r["net_profit"] == money(80_000)
     assert r["net_profit"] > 0
+    assert r["runway"] is None
 
 
 def test_revenue_drop_scales_costs_with_volume_ASSUMPTION():

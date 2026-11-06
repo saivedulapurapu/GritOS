@@ -32,5 +32,5 @@ def apply_shocks(baseline_data, kak_inc_pct, revenue_drop_pct, cogs_inc_pct):
     return {
         "rev": round(new_rev, 2),
         "net_profit": bottom_line['net_profit'],
-        "runway": bottom_line['runway_months'] if bottom_line['runway_months'] != "Infinite" else 999
+        "runway": bottom_line['runway_months']  # None = no cash burn
     }

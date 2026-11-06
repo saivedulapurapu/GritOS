@@ -8,10 +8,11 @@ def calculate_capital_lock(units_in_stock, cost_per_unit, daily_sales_velocity):
     # Capital Lock Risk: Calculated by turnover vs stock
     # If turnover is slow/velocity is low, warned that cash is trapped.
     # Logic: If inventory lasts more than 30 days, it's 'trapped'.
-    days_to_liquidate = (units_in_stock / daily_sales_velocity) if daily_sales_velocity > 0 else 999
+    # None = no sales velocity, so stock never sells through.
+    days_to_liquidate = (units_in_stock / daily_sales_velocity) if daily_sales_velocity > 0 else None
     
     risk_level = "GREEN"
-    if days_to_liquidate > 60: 
+    if days_to_liquidate is None or days_to_liquidate > 60: 
         risk_level = "RED"
         warning = f"₹{inventory_value:,} is trapped and cannot be reinvested. Your stock turnover is dangerously slow."
     elif days_to_liquidate > 30: 
@@ -22,7 +23,7 @@ def calculate_capital_lock(units_in_stock, cost_per_unit, daily_sales_velocity):
 
     return {
         "locked_capital": inventory_value,
-        "days_to_liquidate": round(days_to_liquidate, 1),
+        "days_to_liquidate": round(days_to_liquidate, 1) if days_to_liquidate is not None else None,
         "risk_level": risk_level,
         "warning": warning
     }

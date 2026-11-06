@@ -67,19 +67,31 @@ def handle_local_interactive(msg):
 
 def chat_with_advisor(messages, metrics):
     """Interactive Streaming Chat with Situational Intelligence using Groq."""
+    if not messages:
+        yield "⚠️ No message received. Please type a question."
+        return
+
     if not client:
         yield "⚠️ Groq API key not configured."
         return
 
     latest = messages[-1]["content"]
+
+    runway = metrics.get('baseline', {}).get('runway_months', 'Unknown')
+    if runway is None:
+        runway_text = "No cash burn (runway unlimited)"
+    elif runway == 'Unknown':
+        runway_text = "Unknown"
+    else:
+        runway_text = f"{runway} months"
     
     sys = f"""
     IDENTITY: GritOS AI Strategy Engine.
     CONTEXT: You are inside GritOS, a high-end resilience platform.
     STATUS:
     - Grit Score: {metrics.get('grit_score')}
-    - Survival Probability: {metrics.get('survival_prob', 0)*100}%
-    - Cash Runway: {metrics.get('baseline', {}).get('runway_months', 'Unknown')} months.
+    - Survival Probability: {metrics.get('survival_prob', 0)}%
+    - Cash Runway: {runway_text}.
     
     BEHAVIOR:
     1. Professional, elite, and predictive.

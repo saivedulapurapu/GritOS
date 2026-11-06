@@ -1,5 +1,7 @@
 # GritOS
 
+[![tests](https://github.com/saivedulapurapu/GritOS/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/saivedulapurapu/GritOS/actions/workflows/tests.yml)
+
 **Financial risk and scenario analytics for D2C businesses — manual scenarios and real SEC-filed financials.**
 
 GritOS takes a business's monthly figures (revenue, ad spend, COGS, fixed costs, cash, inventory,

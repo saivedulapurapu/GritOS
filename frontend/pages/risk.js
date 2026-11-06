@@ -3,9 +3,12 @@ import Layout from '../components/Layout';
 import { useBusiness } from '../context/BusinessContext';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { ShieldAlert, Package, Globe, UserCheck, Info } from 'lucide-react';
+import { currencySymbol } from '../lib/currency';
+import SharesInput from '../components/SharesInput';
 
 export default function RiskMatrix() {
     const { business, setBusiness, data, fetchAnalysis } = useBusiness();
+    const sym = currencySymbol(business.currency);
 
     const handleInventoryChange = (field, value) => {
         const numValue = parseFloat(value) || 0;
@@ -30,7 +33,7 @@ export default function RiskMatrix() {
                 <div className="bg-[#1e293b] p-4 rounded-xl border border-white/10 shadow-2xl">
                     <p className="text-sm font-bold text-gray-400 mb-1">{payload[0].name}</p>
                     <p className="text-xl font-black text-white">
-                        ₹{payload[0].value.toLocaleString()}
+                        {sym}{payload[0].value.toLocaleString()}
                     </p>
                 </div>
             );
@@ -92,7 +95,7 @@ export default function RiskMatrix() {
                                 />
                             </div>
                             <div>
-                                <label className="text-xs font-bold text-gray-500 uppercase tracking-tighter">Cost Per Unit (₹)</label>
+                                <label className="text-xs font-bold text-gray-500 uppercase tracking-tighter">Cost Per Unit ({sym})</label>
                                 <input
                                     type="number"
                                     value={business.cost_per_unit}
@@ -118,7 +121,7 @@ export default function RiskMatrix() {
                     <div className="p-6 rounded-2xl bg-white/5 border border-white/5">
                         <div className="flex justify-between items-center mb-2">
                             <span className="text-sm text-gray-400 font-bold uppercase">Locked Value</span>
-                            <span className="text-2xl font-black text-red-500">₹{data?.inventory?.locked_capital?.toLocaleString() || '0'}</span>
+                            <span className="text-2xl font-black text-red-500">{sym}{data?.inventory?.locked_capital?.toLocaleString() || '0'}</span>
                         </div>
                         <div className="text-xs text-red-400 font-bold animate-pulse mb-1">
                             {data?.inventory?.risk_level === 'RED' && "🚨 ACTION REQUIRED: Liquidity Trap Detected"}
@@ -141,6 +144,29 @@ export default function RiskMatrix() {
                             <Globe size={20} />
                         </div>
                         <h3 className="text-xl font-bold">Dependency Exposure</h3>
+                    </div>
+
+                    <div className="mb-8 p-5 rounded-2xl bg-white/5 border border-white/5">
+                        <div className="flex justify-between items-baseline mb-3">
+                            <span className="text-xs font-bold text-gray-500 uppercase">Herfindahl-Hirschman Index (HHI)</span>
+                            <span className="text-sm font-bold">{data?.dependency?.label}</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4 mb-4 text-sm">
+                            <div>Platforms: <span className="font-mono font-bold">{data?.dependency?.platform_hhi?.toLocaleString() ?? '—'}</span>
+                                <span className="text-xs text-gray-500"> ({data?.dependency?.platform_basis})</span></div>
+                            <div>Suppliers: <span className="font-mono font-bold">{data?.dependency?.supplier_hhi?.toLocaleString() ?? '—'}</span>
+                                <span className="text-xs text-gray-500"> ({data?.dependency?.supplier_basis})</span></div>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <SharesInput label="Platform revenue shares (%)" value={business.platform_shares}
+                                onChange={(v) => setBusiness({ ...business, platform_shares: v })} />
+                            <SharesInput label="Supplier purchase shares (%)" value={business.supplier_shares}
+                                onChange={(v) => setBusiness({ ...business, supplier_shares: v })} />
+                        </div>
+                        <p className="mt-3 text-xs text-gray-500">
+                            HHI = sum of squared shares (0–10,000). Bands (US DOJ/FTC 2010): below 1,500 unconcentrated, 1,500–2,500 moderate,
+                            above 2,500 high. Without a share list, only the top source is known, so HHI = top share² (a lower bound).
+                        </p>
                     </div>
 
                     <div className="space-y-6 mb-8">
@@ -198,7 +224,7 @@ export default function RiskMatrix() {
                         <div className="mt-6 p-4 rounded-xl bg-red-500/5 border border-red-500/10 flex gap-3 items-start">
                             <ShieldAlert size={16} className="text-red-400 shrink-0 mt-0.5" />
                             <p className="text-[11px] text-gray-400 leading-tight">
-                                **Concentration Risk**: You have crossed the **50% platform threshold**. A single algorithm update or account suspension could permanently impair your enterprise value.
+                                <strong>Concentration Risk</strong>: your top platform is above <strong>50%</strong> of revenue. A single algorithm update or account suspension could permanently impair your enterprise value.
                             </p>
                         </div>
                     )}
@@ -215,7 +241,8 @@ export default function RiskMatrix() {
                         <p className="text-gray-400 text-sm leading-relaxed max-w-3xl">
                             High platform dependency means your revenue is at risk if that platform changes its algorithm or policies.
                             Similarly, high supplier concentration makes you fragile to supply chain disruptions.
-                            Aim for a dependency score below <span className="text-white font-bold">0.4</span> for optimal resilience.
+                            A highly concentrated profile (HHI above <span className="text-white font-bold">2,500</span>) makes the business Fragile in GritOS,
+                            and Resilient requires an HHI below <span className="text-white font-bold">1,500</span>.
                         </p>
                     </div>
                 </div>

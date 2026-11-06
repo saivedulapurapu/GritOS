@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import Layout from '../components/Layout';
 import { useBusiness } from '../context/BusinessContext';
 import { Send, Bot, User, Sparkles, MessageSquare, Trash2, Zap, RefreshCcw } from 'lucide-react';
+import { API_URL } from '../lib/api';
 
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -144,7 +145,7 @@ export default function AIAdvisor() {
         setChatMessages(prev => [...prev, assistantMsg]);
 
         try {
-            const response = await fetch('http://127.0.0.1:8000/api/chat', {
+            const response = await fetch(`${API_URL}/api/chat`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

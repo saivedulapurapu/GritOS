@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { BarChart3, Activity, ShieldAlert, Cpu, MessageSquare, Menu, X, Rocket } from 'lucide-react';
+import { BarChart3, Activity, ShieldAlert, Cpu, MessageSquare, Menu, X, Rocket, History, Building2 } from 'lucide-react';
 import { useBusiness } from '../context/BusinessContext';
 
 const Layout = ({ children }) => {
@@ -15,6 +15,8 @@ const Layout = ({ children }) => {
         { name: 'Stress Test', href: '/stress', icon: Rocket },
         { name: 'Risk Matrix', href: '/risk', icon: ShieldAlert },
         { name: 'AI Strategy', href: '/advisor', icon: MessageSquare },
+        { name: 'Real Companies', href: '/companies', icon: Building2 },
+        { name: 'History', href: '/history', icon: History },
     ];
 
     const gritColor = data?.grit_score > 70 ? 'text-green-400' : data?.grit_score > 40 ? 'text-yellow-400' : 'text-red-400';
@@ -82,6 +84,12 @@ const Layout = ({ children }) => {
                 </header>
 
                 <div className="p-10 max-w-7xl mx-auto">
+                    {data?.error && (
+                        <div className="mb-8 p-4 rounded-2xl bg-red-500/10 border border-red-500/20 text-sm text-red-300">
+                            <div className="font-bold">{data.message}</div>
+                            {(data.details || []).map((d) => <div key={d}>{d}</div>)}
+                        </div>
+                    )}
                     {children}
                 </div>
             </main>

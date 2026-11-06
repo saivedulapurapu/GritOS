@@ -2,6 +2,7 @@ import React from 'react';
 import Layout from '../components/Layout';
 import { useBusiness } from '../context/BusinessContext';
 import { Save, Info } from 'lucide-react';
+import { CURRENCY_SYMBOLS, currencySymbol } from '../lib/currency';
 
 export default function Profile() {
     const { business, setBusiness, fetchAnalysis, loading } = useBusiness();
@@ -12,27 +13,29 @@ export default function Profile() {
         setBusiness(newBusiness);
     };
 
+    const sym = currencySymbol(business.currency);
+
     const inputGroups = [
         {
             title: 'Revenue & Sales',
             fields: [
-                { id: 'revenue', label: 'Monthly Revenue (₹)', type: 'number' },
+                { id: 'revenue', label: `Monthly Revenue (${sym})`, type: 'number' },
             ]
         },
         {
             title: 'Variable Costs',
             fields: [
-                { id: 'ad_spend', label: 'Ad Spend (CAC) (₹)', type: 'number' },
-                { id: 'cogs', label: 'COGS (₹)', type: 'number' },
-                { id: 'shipping_cost', label: 'Shipping Cost (₹)', type: 'number' },
-                { id: 'rto_cost', label: 'RTO (Returns) Cost (₹)', type: 'number' },
+                { id: 'ad_spend', label: `Ad Spend (${sym})`, type: 'number' },
+                { id: 'cogs', label: `COGS (${sym})`, type: 'number' },
+                { id: 'shipping_cost', label: `Shipping Cost (${sym})`, type: 'number' },
+                { id: 'rto_cost', label: `RTO (Returns) Cost (${sym})`, type: 'number' },
             ]
         },
         {
             title: 'Overheads & Liquidity',
             fields: [
-                { id: 'fixed_costs', label: 'Fixed Costs (Rent/Salaries) (₹)', type: 'number' },
-                { id: 'cash_in_bank', label: 'Cash in Bank (₹)', type: 'number' },
+                { id: 'fixed_costs', label: `Fixed Costs (Rent/Salaries) (${sym})`, type: 'number' },
+                { id: 'cash_in_bank', label: `Cash in Bank (${sym})`, type: 'number' },
             ]
         }
     ];
@@ -52,6 +55,30 @@ export default function Profile() {
                     <Save size={18} />
                     {loading ? 'Recalculating...' : 'Update Baseline'}
                 </button>
+            </div>
+
+            <div className="mb-6 flex items-center gap-3">
+                <label htmlFor="business_name" className="text-sm font-bold text-gray-400 uppercase tracking-wider">Business name</label>
+                <input
+                    id="business_name"
+                    value={business.business_name}
+                    maxLength={120}
+                    onChange={(e) => setBusiness({ ...business, business_name: e.target.value || 'My business' })}
+                    className="bg-[#0a0b10] border border-white/10 rounded-xl px-4 py-2 text-white focus:outline-none focus:border-purple-500/50"
+                />
+            </div>
+
+            <div className="mb-10 flex items-center gap-3">
+                <span className="text-sm font-bold text-gray-400 uppercase tracking-wider">Currency</span>
+                {Object.keys(CURRENCY_SYMBOLS).map((c) => (
+                    <button
+                        key={c}
+                        onClick={() => setBusiness({ ...business, currency: c })}
+                        className={`px-4 py-2 rounded-xl text-sm font-bold border ${business.currency === c ? 'bg-purple-600/30 border-purple-500/50 text-white' : 'bg-white/5 border-white/10 text-gray-400'}`}
+                    >
+                        {c} ({CURRENCY_SYMBOLS[c]})
+                    </button>
+                ))}
             </div>
 
             <div className="grid grid-cols-1 gap-10">
@@ -89,7 +116,7 @@ export default function Profile() {
                 </div>
                 <div>
                     <h4 className="font-bold text-sm text-white">Pro Tip</h4>
-                    <p className="text-sm text-gray-400">Updating these baseline values recalculates your overall Grit Score and Survival Trajectory across the entire system.</p>
+                    <p className="text-sm text-gray-400">Updating these baseline values recalculates your overall Grit Score and Runway-Decay Curve across the entire system.</p>
                 </div>
             </div>
         </Layout>

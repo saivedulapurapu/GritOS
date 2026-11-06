@@ -1,3 +1,8 @@
+# Sentinel convention: runway_months (and capital_lock's days_to_liquidate) is
+# None when the quantity never runs out (no cash burn / no sales velocity).
+# None serialises to JSON null; every consumer handles None explicitly.
+
+
 def calculate_operational_metrics(revenue, ad_spend, cogs, shipping, rto_cost=0):
     """
     Computes real profitability before fixed costs.
@@ -13,16 +18,17 @@ def calculate_operational_metrics(revenue, ad_spend, cogs, shipping, rto_cost=0)
 def calculate_net_metrics(contribution_margin, fixed_costs, cash):
     """
     Computes bottom-line results, burn rate, and runway.
+    runway_months is None when there is no cash burn.
     """
     net_profit = contribution_margin - fixed_costs
     is_profitable = net_profit >= 0
-    
+
     burn_rate = abs(net_profit) if not is_profitable else 0
-    runway = (cash / burn_rate) if burn_rate > 0 else float('inf')
-    
+    runway = round(cash / burn_rate, 2) if burn_rate > 0 else None
+
     return {
         "net_profit": round(net_profit, 2),
         "burn_rate": round(burn_rate, 2),
-        "runway_months": round(runway, 2) if runway != float('inf') else "Infinite",
+        "runway_months": runway,
         "is_profitable": is_profitable
     }

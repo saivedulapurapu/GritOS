@@ -135,7 +135,7 @@ from that cache without network access and prints the DATASET FACTS summary.
 
 ```bash
 pip install -r backend/requirements-dev.txt
-pytest                         # 393 tests, no network, no Groq key, in-memory SQLite per test
+pytest                         # 401 tests, no network, no Groq key, in-memory SQLite per test
 pytest --cov                   # backend coverage: 98 %
 ```
 

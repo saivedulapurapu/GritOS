@@ -11,6 +11,12 @@ INPUT_FIELDS = [
 ]
 
 
+def list_inputs(state):
+    """List-valued inputs (concentration shares) are stored as JSON on the scenario."""
+    extra = {k: getattr(state, k) for k in ("platform_shares", "supplier_shares") if getattr(state, k)}
+    return extra or None
+
+
 def get_or_create_business(db: Session, name, source="manual", ticker=None):
     business = db.scalar(select(Business).where(Business.name == name, Business.source == source))
     if business is None:

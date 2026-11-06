@@ -26,16 +26,16 @@ def test_ten_points_in_either_half_moves_grit_by_five():
 # ---------- concentration multiplier ----------
 
 @pytest.mark.parametrize(
-    "dep_pct, expected",
+    "hhi, expected",
     [
-        (50, 80.0),    # not over 50 -> x1.0
-        (50.1, 72.0),  # over 50 -> 80 x 0.9
-        (80, 72.0),    # not over 80 -> x0.9
-        (80.1, 64.0),  # over 80 -> 80 x 0.8
+        (1499.9, 80.0),  # unconcentrated -> x1.0
+        (1500, 72.0),    # moderate starts at 1,500 -> 80 x 0.9
+        (2500, 72.0),    # 2,500 is still moderate -> x0.9
+        (2500.1, 64.0),  # highly concentrated -> 80 x 0.8
     ],
 )
-def test_concentration_multiplier_boundaries(dep_pct, expected):
-    assert score(100, 60, dep_pct, 10, None) == expected
+def test_concentration_multiplier_hhi_boundaries(hhi, expected):
+    assert score(100, 60, hhi, 10, None) == expected
 
 
 # ---------- inventory multiplier ----------
@@ -55,8 +55,8 @@ def test_inventory_multiplier_boundaries(days, expected):
 
 
 def test_multipliers_compound():
-    # 80 x 0.9 (60% concentration) x 0.95 (45 days) = 68.4
-    assert score(100, 60, 60, 45, None) == 68.4
+    # 80 x 0.9 (HHI 2,000: moderate) x 0.95 (45 days) = 68.4
+    assert score(100, 60, 2000, 45, None) == 68.4
 
 
 # ---------- short-runway cap ----------
@@ -124,16 +124,21 @@ def test_no_shock_grit_equals_baseline_grit():
 
 
 def test_baseline_grit_includes_multipliers():
-    # platform 800,000 / 1,000,000 = 80% -> x0.9; default stock 1,000 / 10 per day = 100 days -> x0.85
-    # base = 0.5 x 100 + 0.5 x 99.9 = 99.95 -> 99.95 x 0.9 x 0.85 = 76.46 -> 76.5
+    # platform 800,000 / 1,000,000 = 80% top share -> HHI lower bound 80^2 = 6,400 (high) -> x0.8
+    #   and the tier drops to Fragile (score 50: HHI > 2,500)
+    # default stock 1,000 / 10 per day = 100 days -> x0.85
+    # base = 0.5 x 50 + 0.5 x 99.9 = 74.95 -> 74.95 x 0.8 x 0.85 = 50.97 -> 51.0
     r = analyse(top_platform_rev=800_000)
-    assert r["baseline_grit"] == 76.5
-    assert r["grit_breakdown"]["concentration_multiplier"] == 0.9
+    assert r["fragility"]["class"] == "Fragile"
+    assert r["baseline_grit"] == 51.0
+    assert r["grit_breakdown"]["concentration_multiplier"] == 0.8
     assert r["grit_breakdown"]["inventory_multiplier"] == 0.85
 
 
 def test_cac_spike_grit_no_longer_generous():
     # Before Fix 2b: 46.0 at 1.85 months runway.
-    # Now: stressed tier Critical (20), estimate 3.9 -> base 11.95 -> x0.9 x0.85 = 9.14 -> 9.1
+    # Now (80% top platform -> HHI 6,400): baseline tier Fragile (factor 0.8), stressed Critical (20)
+    # estimate: λ = 1.85 x 0.8 = 1.48 -> exp(-6 / 1.48) = 1.7%
+    # base = 0.5 x 20 + 0.5 x 1.7 = 10.85 -> x0.8 x0.85 = 7.38 -> 7.4
     r = analyse(cac_shock=100, top_platform_rev=800_000)
-    assert r["grit_score"] == 9.1
+    assert r["grit_score"] == 7.4

@@ -56,7 +56,8 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 def analyze_business(state: FullBusinessState, session=Depends(db.get_db)):
     analysis = process_business_state(state)
     analysis["data_quality"] = data_quality.build_report(state, analysis)
-    scenario_id = repository.save_analysis(session, state, analysis, state.business_name)
+    scenario_id = repository.save_analysis(session, state, analysis, state.business_name,
+                                           extra_inputs=repository.list_inputs(state))
     advice = llm_advisor.generate_strategic_advice(analysis)
     return {**analysis, "advice": advice, "scenario_id": scenario_id}
 

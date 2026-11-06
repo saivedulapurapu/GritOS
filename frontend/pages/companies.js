@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import Layout from '../components/Layout';
 import DataQualityCard from '../components/DataQualityCard';
+import SharesInput from '../components/SharesInput';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceLine } from 'recharts';
 
 const API = 'http://localhost:8000';
@@ -34,7 +35,8 @@ export default function Companies() {
     const [ticker, setTicker] = useState('');
     const [quarters, setQuarters] = useState([]);
     const [quarter, setQuarter] = useState('');
-    const [shocks, setShocks] = useState({ cac_shock: 0, rev_shock: 0, cogs_shock: 0, ad_spend_behaviour: 'fixed' });
+    const [shocks, setShocks] = useState({ cac_shock: 0, rev_shock: 0, cogs_shock: 0, ad_spend_behaviour: 'fixed',
+        platform_shares: null, supplier_shares: null });
     const [result, setResult] = useState(null);
     const [validation, setValidation] = useState(null);
     const [error, setError] = useState(null);
@@ -118,6 +120,16 @@ export default function Companies() {
                         <option value="scales">scales with volume</option>
                     </select>
                 </label>
+                <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <SharesInput label="Platform revenue shares (%) — manual, ASSUMED" value={shocks.platform_shares}
+                        onChange={(v) => setShocks({ ...shocks, platform_shares: v })} />
+                    <SharesInput label="Supplier purchase shares (%) — manual, ASSUMED" value={shocks.supplier_shares}
+                        onChange={(v) => setShocks({ ...shocks, supplier_shares: v })} />
+                    <p className="md:col-span-2 text-xs text-gray-500">
+                        Concentration is not in SEC companyfacts (it appears only in 10-K text). Leave blank to analyse without it,
+                        or enter shares yourself; they are labelled ASSUMED.
+                    </p>
+                </div>
                 <button onClick={analyse} disabled={!quarter} className="px-6 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 font-bold text-white disabled:opacity-40">
                     Analyse
                 </button>

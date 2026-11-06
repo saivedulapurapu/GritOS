@@ -49,6 +49,10 @@ OPTIONAL_INPUTS = [
     "total_purchases",
 ]
 
+# A share list supplies the same information as the top-share fields
+ALTERNATIVE_INPUTS = {"top_platform_rev": "platform_shares", "top_supplier_spend": "supplier_shares",
+                      "total_purchases": "supplier_shares"}
+
 MAX_PLAUSIBLE_MARGIN_PCT = 90
 MIN_PLAUSIBLE_MARGIN_PCT = -100
 MAX_PLAUSIBLE_RUNWAY_MONTHS = 120
@@ -105,7 +109,8 @@ def assess_manual_inputs(state, analysis, report=None):
     report = report or QualityReport()
 
     # ---- completeness ----
-    supplied = [f for f in OPTIONAL_INPUTS if f in state.model_fields_set]
+    given = state.model_fields_set
+    supplied = [f for f in OPTIONAL_INPUTS if f in given or ALTERNATIVE_INPUTS.get(f) in given]
     report.set_score("completeness", 100 * len(supplied) / len(OPTIONAL_INPUTS))
     for f in OPTIONAL_INPUTS:
         if f not in supplied:

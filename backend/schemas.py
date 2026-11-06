@@ -6,6 +6,7 @@ Anything that breaks these rules is rejected with HTTP 422 before any model runs
 - shocks are bounded: revenue drop 0-100 %, cost increases (CAC, COGS) 0-300 %
 - cross-field: top-platform revenue <= revenue; top-supplier spend <= total purchases;
   stock on hand needs a sales velocity > 0 (otherwise days-to-sell-through is undefined)
+- concentration share lists (platform_shares, supplier_shares): each 0-100 %, sum <= 100 %
 - unknown fields are rejected (catches typos and renamed fields such as the old kak_shock)
 
 Softer checks (possible but suspicious inputs, implausible outputs) are not errors;
@@ -13,9 +14,18 @@ they are reported by data_quality.py.
 """
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
+import dependency_index
 
 CURRENCY_SYMBOLS = {"INR": "₹", "USD": "$"}
+
+
+def _check_shares(v):
+    if not v:
+        return None  # empty list = not supplied
+    dependency_index.validate_shares(v)
+    return v
 
 MAX_REVENUE_DROP_PCT = 100
 MAX_COST_INCREASE_PCT = 300
@@ -51,6 +61,14 @@ class FullBusinessState(BaseModel):
     top_platform_rev: float = Field(0, ge=0)
     top_supplier_spend: float = Field(0, ge=0)
     total_purchases: float = Field(0, ge=0)
+    # Optional full share lists (percent) for an exact HHI; they take precedence over the top-share fields
+    platform_shares: list[float] | None = Field(None, max_length=50)
+    supplier_shares: list[float] | None = Field(None, max_length=50)
+
+    @field_validator("platform_shares", "supplier_shares")
+    @classmethod
+    def check_shares(cls, v):
+        return _check_shares(v)
 
     @model_validator(mode="after")
     def check_cross_field_rules(self):
@@ -79,6 +97,14 @@ class CompanyScenario(BaseModel):
     rev_shock: float = Field(0, ge=0, le=MAX_REVENUE_DROP_PCT)
     cogs_shock: float = Field(0, ge=0, le=MAX_COST_INCREASE_PCT)
     ad_spend_behaviour: Literal["fixed", "scales"] = "fixed"
+    # Concentration is not in SEC filings: these are manual (ASSUMED) inputs
+    platform_shares: list[float] | None = Field(None, max_length=50)
+    supplier_shares: list[float] | None = Field(None, max_length=50)
+
+    @field_validator("platform_shares", "supplier_shares")
+    @classmethod
+    def check_shares(cls, v):
+        return _check_shares(v)
 
 
 class ChatMessage(BaseModel):

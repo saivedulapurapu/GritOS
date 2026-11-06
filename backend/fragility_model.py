@@ -19,6 +19,10 @@ Thresholds are stated rules of thumb, not fitted to data:
   healthy for D2C.
 - Ad spend / revenue: > 50% means the business depends on paid acquisition;
   <= 30% is required for Resilient.
+- Concentration (HHI of platform or supplier shares, see dependency_index.py):
+  highly concentrated (> 2,500) makes a business Fragile — one platform ban or
+  supplier failure removes most of its sales or supply; Resilient requires an
+  unconcentrated profile (< 1,500).
 """
 
 # score:          feeds the Grit Score (unchanged scale: old Anti-Fragile 100,
@@ -47,12 +51,15 @@ FRAGILE_MARGIN_PCT = 10
 RESILIENT_MARGIN_PCT = 20
 FRAGILE_AD_RATIO = 0.5
 RESILIENT_AD_RATIO = 0.3
+FRAGILE_HHI = 2500       # DOJ/FTC "highly concentrated" above this
+RESILIENT_HHI = 1500     # DOJ/FTC "unconcentrated" below this
 
 
-def classify_fragility(margin_pct, runway_months, ad_spend_ratio):
+def classify_fragility(margin_pct, runway_months, ad_spend_ratio, concentration_hhi=0.0):
     """
     Classify baseline business health into Critical / Fragile / Stable / Resilient.
     runway_months: baseline runway, None = no cash burn.
+    concentration_hhi: larger of platform / supplier HHI (0 = not supplied).
     Returns the tier with its score, colour, runway_factor and the reasons for it.
     """
     burning = runway_months is not None
@@ -72,6 +79,8 @@ def classify_fragility(margin_pct, runway_months, ad_spend_ratio):
         fragile.append(f"Contribution margin under {FRAGILE_MARGIN_PCT}%")
     if ad_spend_ratio > FRAGILE_AD_RATIO:
         fragile.append(f"Ad spend over {FRAGILE_AD_RATIO:.0%} of revenue")
+    if concentration_hhi > FRAGILE_HHI:
+        fragile.append(f"Highly concentrated platforms or suppliers (HHI {concentration_hhi:,.0f} > {FRAGILE_HHI:,})")
     if fragile:
         return _result("Fragile", fragile)
 
@@ -82,6 +91,8 @@ def classify_fragility(margin_pct, runway_months, ad_spend_ratio):
         gaps.append(f"Contribution margin under {RESILIENT_MARGIN_PCT}%")
     if ad_spend_ratio > RESILIENT_AD_RATIO:
         gaps.append(f"Ad spend over {RESILIENT_AD_RATIO:.0%} of revenue")
+    if concentration_hhi >= RESILIENT_HHI:
+        gaps.append(f"Moderately concentrated platforms or suppliers (HHI {concentration_hhi:,.0f} >= {RESILIENT_HHI:,})")
     if gaps:
         return _result("Stable", gaps)
 

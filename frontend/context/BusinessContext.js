@@ -23,6 +23,8 @@ export const BusinessProvider = ({ children }) => {
         daily_velocity: 100,
         top_supplier_spend: 200000,
         total_purchases: 300000,
+        platform_shares: null,  // optional % list -> exact HHI (backend dependency_index.py)
+        supplier_shares: null,
     });
 
     const [shocks, setShocks] = useState({

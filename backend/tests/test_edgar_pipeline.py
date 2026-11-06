@@ -171,3 +171,17 @@ def test_api_validation(loaded):
 def test_api_without_etl_returns_empty_lists():
     assert api.get("/api/companies").json() == []
     assert api.get("/api/validation").json()["overall"] == {"quarters": 0}
+
+
+def test_edgar_concentration_is_manual_and_labelled(loaded):
+    plain = api.post("/api/analyze/company/LOVE", params={"quarter": "2022-Q1"}).json()
+    assert plain["dependency"]["max_hhi"] == 0
+    assert "not in companyfacts" in plain["provenance"]["concentration"]["note"]
+    manual = api.post("/api/analyze/company/LOVE", params={"quarter": "2022-Q1"},
+                      json={"supplier_shares": [55, 25]}).json()
+    # 55^2 + 25^2 = 3,025 + 625 = 3,650 -> highly concentrated
+    assert manual["dependency"]["supplier_hhi"] == 3_650
+    assert manual["provenance"]["concentration"] == {"status": "ASSUMED",
+                                                     "note": "entered manually (not in SEC companyfacts)"}
+    assert api.post("/api/analyze/company/LOVE", params={"quarter": "2022-Q1"},
+                    json={"supplier_shares": [90, 20]}).status_code == 422

@@ -84,6 +84,9 @@ def analyze_company(
         raise HTTPException(status_code=422, detail={"message": f"{company.ticker} {quarter} cannot be analysed",
                                                      "missing": mapping["missing"]})
     scenario = scenario or CompanyScenario()
+    if scenario.platform_shares or scenario.supplier_shares:
+        mapping["provenance"]["concentration"] = {
+            "status": "ASSUMED", "note": "entered manually (not in SEC companyfacts)"}
     state = FullBusinessState(**mapping["inputs"], **scenario.model_dump())
     analysis = process_business_state(state)
 
@@ -92,7 +95,8 @@ def analyze_company(
     analysis["data_quality"] = report.to_dict()
 
     scenario_id = repository.save_analysis(session, state, analysis, company.name, source="edgar",
-                                           ticker=company.ticker, period_label=quarter)
+                                           ticker=company.ticker, period_label=quarter,
+                                           extra_inputs=repository.list_inputs(state))
     return {
         **analysis,
         "scenario_id": scenario_id,

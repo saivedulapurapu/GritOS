@@ -97,3 +97,20 @@ def test_fetch_without_user_agent_fails_before_any_request(monkeypatch, tmp_path
     monkeypatch.delenv("SEC_USER_AGENT", raising=False)
     with pytest.raises(ValueError, match="SEC_USER_AGENT"):
         edgar_ingest.run(["PTON"], raw_dir=tmp_path, fetch=True)
+
+
+# ---------- CORS (Fix 8) ----------
+
+def test_cors_allows_configured_frontend_only():
+    ok = api.options("/api/analyze", headers={"Origin": "http://localhost:3000",
+                                              "Access-Control-Request-Method": "POST"})
+    assert ok.headers.get("access-control-allow-origin") == "http://localhost:3000"
+    assert "access-control-allow-credentials" not in ok.headers
+    bad = api.options("/api/analyze", headers={"Origin": "https://evil.example",
+                                               "Access-Control-Request-Method": "POST"})
+    assert "access-control-allow-origin" not in bad.headers
+
+
+def test_allowed_origins_from_env_never_wildcard(monkeypatch):
+    monkeypatch.setenv("ALLOWED_ORIGINS", "https://app.example, *, http://localhost:3000")
+    assert main.allowed_origins() == ["https://app.example", "http://localhost:3000"]

@@ -611,6 +611,9 @@ def _jsonable(obj):
 
 
 def main(argv=None):
+    from dotenv import load_dotenv
+
+    load_dotenv()  # SEC_USER_AGENT / GRITOS_DB_URL may live in .env
     parser = argparse.ArgumentParser(description="Load SEC EDGAR companyfacts into GritOS")
     parser.add_argument("--tickers", default=",".join(COMPANIES), help="comma-separated tickers")
     parser.add_argument("--fetch", action="store_true", help="download missing raw files from SEC")

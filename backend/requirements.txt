@@ -1,12 +1,7 @@
-fastapi
-uvicorn
-pandas
-xgboost
-pydantic
-python-dotenv
-sqlalchemy
-google-generativeai
-groq
-pytest
-httpx
-pytest-cov
+# Runtime dependencies (pinned). Dev/test tools: requirements-dev.txt
+fastapi==0.162.0
+uvicorn==0.54.0
+pydantic==2.14.3
+python-dotenv==1.2.4
+SQLAlchemy==2.1.8
+groq==1.7.0

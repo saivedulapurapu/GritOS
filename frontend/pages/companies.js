@@ -4,7 +4,7 @@ import DataQualityCard from '../components/DataQualityCard';
 import SharesInput from '../components/SharesInput';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceLine } from 'recharts';
 
-const API = 'http://localhost:8000';
+import { API_URL as API } from '../lib/api';
 
 const BADGE = {
     REAL: 'bg-green-500/15 text-green-300 border-green-500/30',

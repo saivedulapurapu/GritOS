@@ -18,7 +18,7 @@ def process_business_state(state: FullBusinessState):
 
     # 2. Shock Simulation
     shock_results = shock_engine.apply_shocks(
-        state.dict(), state.cac_shock, state.rev_shock, state.cogs_shock, state.ad_spend_behaviour
+        state.model_dump(), state.cac_shock, state.rev_shock, state.cogs_shock, state.ad_spend_behaviour
     )
 
     # 3. Capital Lock

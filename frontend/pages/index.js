@@ -8,15 +8,8 @@ import DataQualityCard from '../components/DataQualityCard';
 export default function Overview() {
     const { data, loading, randomizeMockData } = useBusiness();
 
-    const baseProb = data?.runway_decay_estimate || 80;
-    const chartData = data?.trajectory || [
-        { name: 'Month 1', prob: baseProb },
-        { name: 'Month 2', prob: Math.max(0, baseProb - 5) },
-        { name: 'Month 3', prob: Math.max(0, baseProb - 12) },
-        { name: 'Month 4', prob: Math.max(0, baseProb - 20) },
-        { name: 'Month 5', prob: Math.max(0, baseProb - 25) },
-        { name: 'Month 6', prob: Math.max(0, baseProb - 30) },
-    ];
+    // Only ever plot the backend's computed curve; nothing is drawn until it arrives.
+    const chartData = data?.trajectory || [];
 
     const CustomTooltip = ({ active, payload }) => {
         if (active && payload && payload.length) {

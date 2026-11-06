@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { API_URL } from '../lib/api';
 
 const BusinessContext = createContext();
 
@@ -41,7 +42,7 @@ export const BusinessProvider = ({ children }) => {
     const fetchAnalysis = async (currentBusiness = business, currentShocks = shocks) => {
         setLoading(true);
         try {
-            const response = await fetch('http://localhost:8000/api/analyze', {
+            const response = await fetch(`${API_URL}/api/analyze`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ ...currentBusiness, ...currentShocks })
@@ -67,10 +68,10 @@ export const BusinessProvider = ({ children }) => {
     const randomizeMockData = async () => {
         setLoading(true);
         try {
-            const response = await fetch('http://localhost:8000/api/mock');
+            const response = await fetch(`${API_URL}/api/mock`);
             const mockBiz = await response.json();
-            setBusiness(mockBiz);
-            fetchAnalysis(mockBiz, shocks);
+            // Keep name, currency and share lists; the [business, shocks] effect re-runs the analysis once.
+            setBusiness((prev) => ({ ...prev, ...mockBiz }));
         } catch (err) {
             console.error("Mock fetch error", err);
         } finally {

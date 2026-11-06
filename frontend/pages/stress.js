@@ -114,7 +114,7 @@ export default function StressTest() {
                     <div className="p-6 rounded-2xl bg-purple-600/5 border border-purple-500/10 flex items-start gap-4">
                         <Info className="text-purple-400 mt-1" size={20} />
                         <p className="text-sm text-gray-400 leading-relaxed">
-                            Market shocks are simulated using a **Sensitivity Multiplier**. For example, a 20% CAC spike doesn't just increase costs; it measures how your overall **contribution margin** erodes and accelerates your **cash burn**.
+                            A revenue drop lowers volume (and ad spend too if it scales); CAC and COGS increases raise those costs. <strong>Shock sensitivity</strong> is the months of runway lost per percentage point of total shock, counted over a 12-month horizon.
                         </p>
                     </div>
                 </div>

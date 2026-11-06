@@ -224,7 +224,7 @@ export default function RiskMatrix() {
                         <div className="mt-6 p-4 rounded-xl bg-red-500/5 border border-red-500/10 flex gap-3 items-start">
                             <ShieldAlert size={16} className="text-red-400 shrink-0 mt-0.5" />
                             <p className="text-[11px] text-gray-400 leading-tight">
-                                **Concentration Risk**: You have crossed the **50% platform threshold**. A single algorithm update or account suspension could permanently impair your enterprise value.
+                                <strong>Concentration Risk</strong>: your top platform is above <strong>50%</strong> of revenue. A single algorithm update or account suspension could permanently impair your enterprise value.
                             </p>
                         </div>
                     )}

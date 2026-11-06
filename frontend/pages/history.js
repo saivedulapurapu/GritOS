@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import Layout from '../components/Layout';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
-const API = 'http://localhost:8000';
+import { API_URL as API } from '../lib/api';
 
 const fmtRunway = (v) => (v === null || v === undefined ? '∞' : `${Number(v).toFixed(1)} mo`);
 

@@ -1,10 +1,14 @@
 import logging
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
+from dotenv import load_dotenv
+
+load_dotenv()  # .env in backend/ or the repo root (see .env.example)
 
 import data_quality
 import db
@@ -26,13 +30,21 @@ async def lifespan(app):
 app = FastAPI(title="GritOS Runway Intelligence API", lifespan=lifespan)
 app.include_router(edgar_api.router)
 
+DEFAULT_ALLOWED_ORIGINS = "http://localhost:3000,http://127.0.0.1:3000"
+
+
+def allowed_origins():
+    """Comma-separated ALLOWED_ORIGINS env var; never '*'. No cookies are used, so no credentials."""
+    raw = os.getenv("ALLOWED_ORIGINS", DEFAULT_ALLOWED_ORIGINS)
+    return [o.strip() for o in raw.split(",") if o.strip() and o.strip() != "*"]
+
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-    expose_headers=["*"]
+    allow_origins=allowed_origins(),
+    allow_credentials=False,
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type"],
 )
 
 

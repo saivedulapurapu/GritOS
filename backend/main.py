@@ -1,25 +1,34 @@
 import logging
+from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 
 import capital_lock
 import data_quality
+import db
 import dependency_index
 import financial_engine
 import fragility_model
 import grit
 import llm_advisor
 import mock_data
+import repository
 import runway_decay
 import shock_engine
 from schemas import CURRENCY_SYMBOLS, ChatRequest, FullBusinessState
 
 logger = logging.getLogger("gritos")
 
-app = FastAPI(title="GritOS Runway Intelligence API")
+@asynccontextmanager
+async def lifespan(app):
+    db.init_db()
+    yield
+
+
+app = FastAPI(title="GritOS Runway Intelligence API", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -123,11 +132,25 @@ def process_business_state(state: FullBusinessState):
 
 
 @app.post("/api/analyze")
-def analyze_business(state: FullBusinessState):
+def analyze_business(state: FullBusinessState, session=Depends(db.get_db)):
     analysis = process_business_state(state)
     analysis["data_quality"] = data_quality.build_report(state, analysis)
+    scenario_id = repository.save_analysis(session, state, analysis, state.business_name)
     advice = llm_advisor.generate_strategic_advice(analysis)
-    return {**analysis, "advice": advice}
+    return {**analysis, "advice": advice, "scenario_id": scenario_id}
+
+
+@app.get("/api/history")
+def history(limit: int = Query(50, ge=1, le=500), business: str | None = None, session=Depends(db.get_db)):
+    return repository.list_history(session, limit=limit, business=business)
+
+
+@app.get("/api/scenarios/{scenario_id}")
+def scenario_detail(scenario_id: int, session=Depends(db.get_db)):
+    found = repository.get_scenario(session, scenario_id)
+    if found is None:
+        raise HTTPException(status_code=404, detail=f"Scenario {scenario_id} not found")
+    return found
 
 
 @app.get("/api/mock")

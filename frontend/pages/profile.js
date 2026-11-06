@@ -57,6 +57,17 @@ export default function Profile() {
                 </button>
             </div>
 
+            <div className="mb-6 flex items-center gap-3">
+                <label htmlFor="business_name" className="text-sm font-bold text-gray-400 uppercase tracking-wider">Business name</label>
+                <input
+                    id="business_name"
+                    value={business.business_name}
+                    maxLength={120}
+                    onChange={(e) => setBusiness({ ...business, business_name: e.target.value || 'My business' })}
+                    className="bg-[#0a0b10] border border-white/10 rounded-xl px-4 py-2 text-white focus:outline-none focus:border-purple-500/50"
+                />
+            </div>
+
             <div className="mb-10 flex items-center gap-3">
                 <span className="text-sm font-bold text-gray-400 uppercase tracking-wider">Currency</span>
                 {Object.keys(CURRENCY_SYMBOLS).map((c) => (

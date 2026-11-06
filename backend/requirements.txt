@@ -5,7 +5,6 @@ xgboost
 pydantic
 python-dotenv
 sqlalchemy
-alembic
 google-generativeai
 groq
 pytest

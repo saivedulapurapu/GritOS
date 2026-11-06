@@ -8,6 +8,7 @@ export const BusinessProvider = ({ children }) => {
     const [loading, setLoading] = useState(false);
     const [data, setData] = useState(null);
     const [business, setBusiness] = useState({
+        business_name: 'My business',  // groups saved scenarios on the History page
         currency: 'INR',  // 'INR' | 'USD' — backend schemas.FullBusinessState
         revenue: 1000000,
         top_platform_rev: 800000,

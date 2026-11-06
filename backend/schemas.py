@@ -24,6 +24,7 @@ MAX_COST_INCREASE_PCT = 300
 class FullBusinessState(BaseModel):
     model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
 
+    business_name: str = Field("Manual scenario", min_length=1, max_length=120)
     currency: Literal["INR", "USD"] = "INR"
 
     # Baseline (monthly)

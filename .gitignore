@@ -4,3 +4,13 @@
 __pycache__
 *.pyc
 .env
+
+# Local database (recreated on startup) and raw SEC EDGAR downloads
+*.db
+backend/data/raw/
+
+# Test / coverage output
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/

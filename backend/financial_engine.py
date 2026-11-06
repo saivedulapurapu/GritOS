@@ -1,12 +1,6 @@
 # Sentinel convention: runway_months (and capital_lock's days_to_liquidate) is
 # None when the quantity never runs out (no cash burn / no sales velocity).
-# None serialises to JSON null. Models that need a number use runway_as_number().
-MODEL_INFINITE_RUNWAY = 999.0
-
-
-def runway_as_number(runway_months):
-    """Numeric runway for model inputs: None (no cash burn) -> MODEL_INFINITE_RUNWAY."""
-    return MODEL_INFINITE_RUNWAY if runway_months is None else float(runway_months)
+# None serialises to JSON null; every consumer handles None explicitly.
 
 
 def calculate_operational_metrics(revenue, ad_spend, cogs, shipping, rto_cost=0):

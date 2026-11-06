@@ -26,7 +26,8 @@ export const BusinessProvider = ({ children }) => {
     const [shocks, setShocks] = useState({
         kak_shock: 0,
         rev_shock: 0,
-        cogs_shock: 0
+        cogs_shock: 0,
+        ad_spend_behaviour: 'fixed'  // 'fixed' | 'scales' — see backend shock_engine.apply_shocks
     });
 
     const [chatMessages, setChatMessages] = useState([

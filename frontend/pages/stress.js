@@ -1,7 +1,7 @@
 import React from 'react';
 import Layout from '../components/Layout';
 import { useBusiness } from '../context/BusinessContext';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, Legend } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, Legend, LabelList } from 'recharts';
 import { ShieldAlert, Zap, TrendingDown, Info } from 'lucide-react';
 
 export default function StressTest() {
@@ -11,30 +11,32 @@ export default function StressTest() {
         setShocks(prev => ({ ...prev, [field]: parseFloat(value) || 0 }));
     };
 
-    // Backend sends runway = null when there is no cash burn; draw it as a 24-month bar.
-    const normalizeRunway = (val) => {
-        if (val === null) return 24;
-        return parseFloat(val) || 0;
+    // Bars use the same 12-month horizon as the backend's sensitivity / months-lost.
+    // null runway = no cash burn -> full bar labelled ∞; runway over 12 -> full bar labelled 12+.
+    const HORIZON = 12;
+    const barValue = (val) => (val === null ? HORIZON : Math.min(HORIZON, parseFloat(val) || 0));
+    const barLabel = (val) => {
+        if (val === null) return '∞ no cash burn';
+        if (val === undefined) return '';
+        const months = parseFloat(val) || 0;
+        return months > HORIZON ? `12+ (${months.toFixed(1)} mo)` : `${months.toFixed(1)} mo`;
     };
 
     const runwayData = [
-        { name: 'Baseline', value: normalizeRunway(data?.baseline?.runway_months), infinite: data?.baseline?.runway_months === null, color: '#3b82f6' },
-        { name: 'Shock Impact', value: normalizeRunway(data?.simulation?.runway), infinite: data?.simulation?.runway === null, color: '#ef4444' }
+        { name: 'Baseline', value: barValue(data?.baseline?.runway_months), label: barLabel(data?.baseline?.runway_months), color: '#3b82f6' },
+        { name: 'Shock Impact', value: barValue(data?.simulation?.runway), label: barLabel(data?.simulation?.runway), color: '#ef4444' }
     ];
 
-    const b_val = normalizeRunway(data?.baseline?.runway_months);
-    const s_val = normalizeRunway(data?.simulation?.runway);
-    const monthsLost = Math.max(0, b_val - s_val);
+    const monthsLost = data?.simulation?.runway_lost_months ?? 0;
 
     const CustomTooltip = ({ active, payload }) => {
         if (active && payload && payload.length) {
-            const val = payload[0].value;
-            const { name, infinite } = payload[0].payload;
+            const { name, label } = payload[0].payload;
             return (
                 <div className="bg-[#1e293b] p-4 rounded-xl border border-white/10 shadow-2xl">
                     <p className="text-sm font-bold text-gray-400 mb-1">{name}</p>
                     <p className="text-xl font-black text-white">
-                        {infinite ? '∞ Infinite (no cash burn)' : `${val.toFixed(1)} Months`}
+                        {label}
                     </p>
                 </div>
             );
@@ -90,6 +92,25 @@ export default function StressTest() {
                         </div>
                     ))}
 
+                    <div className="p-8 rounded-3xl bg-[#11131a] border border-white/5">
+                        <div className="font-bold text-lg mb-4">When revenue falls, ad spend…</div>
+                        <div className="flex gap-3">
+                            {[
+                                { id: 'fixed', label: 'Stays fixed (default)' },
+                                { id: 'scales', label: 'Scales with volume' },
+                            ].map((opt) => (
+                                <button
+                                    key={opt.id}
+                                    onClick={() => setShocks(prev => ({ ...prev, ad_spend_behaviour: opt.id }))}
+                                    className={`px-4 py-2 rounded-xl text-sm font-bold border transition-all ${shocks.ad_spend_behaviour === opt.id ? 'bg-purple-600/30 border-purple-500/50 text-white' : 'bg-white/5 border-white/10 text-gray-400 hover:text-white'}`}
+                                >
+                                    {opt.label}
+                                </button>
+                            ))}
+                        </div>
+                        <p className="mt-3 text-xs text-gray-500">Fixed: committed campaigns keep spending, so effective CAC rises as demand falls. Scales: ad spend falls in line with orders.</p>
+                    </div>
+
                     <div className="p-6 rounded-2xl bg-purple-600/5 border border-purple-500/10 flex items-start gap-4">
                         <Info className="text-purple-400 mt-1" size={20} />
                         <p className="text-sm text-gray-400 leading-relaxed">
@@ -106,13 +127,14 @@ export default function StressTest() {
                         <ResponsiveContainer width="100%" height="100%">
                             <BarChart data={runwayData} layout="vertical" margin={{ left: 40, right: 40 }}>
                                 <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" horizontal={false} />
-                                <XAxis type="number" stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} domain={[0, 'auto']} />
+                                <XAxis type="number" stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} domain={[0, HORIZON]} ticks={[0, 3, 6, 9, 12]} tickFormatter={(t) => (t === HORIZON ? '12+' : t)} />
                                 <YAxis dataKey="name" type="category" stroke="#fff" fontSize={14} fontWeight="bold" tickLine={false} axisLine={false} width={100} />
                                 <Tooltip
                                     cursor={{ fill: '#ffffff05' }}
                                     content={<CustomTooltip />}
                                 />
                                 <Bar dataKey="value" radius={[0, 10, 10, 0]} barSize={60}>
+                                    <LabelList dataKey="label" position="insideRight" fill="#fff" fontSize={12} />
                                     {runwayData.map((entry, index) => (
                                         <Cell key={`cell-${index}`} fill={entry.color} />
                                     ))}
@@ -123,7 +145,7 @@ export default function StressTest() {
 
                     <div className="mt-8 grid grid-cols-2 gap-4">
                         <div className="p-6 rounded-2xl bg-white/5 border border-white/5 text-center">
-                            <div className="text-xs text-gray-500 uppercase mb-2">Months Lost</div>
+                            <div className="text-xs text-gray-500 uppercase mb-2">Months Lost (12-mo horizon)</div>
                             <div className="text-4xl font-black text-red-500">
                                 {monthsLost.toFixed(1)}
                             </div>

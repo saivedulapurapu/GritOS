@@ -107,10 +107,17 @@ def get_shock_sensitivity(baseline_runway, shock_runway, total_shock_pct):
     """
     if total_shock_pct <= 0:
         return 0
+    return round(_runway_lost(baseline_runway, shock_runway) / total_shock_pct, 3)
 
+
+def _runway_lost(baseline_runway, shock_runway):
     horizon = SENSITIVITY_HORIZON_MONTHS
     b_val = horizon if baseline_runway is None else min(float(baseline_runway), horizon)
     s_val = horizon if shock_runway is None else min(float(shock_runway), horizon)
+    return max(0.0, b_val - s_val)
 
-    runway_lost = max(0.0, b_val - s_val)
-    return round(runway_lost / total_shock_pct, 3)
+
+def runway_lost_within_horizon(baseline_runway, shock_runway):
+    """Months of runway lost, counting only the first 12 months (None = no burn).
+    Same horizon as sensitivity, so 'months lost' and sensitivity always agree."""
+    return round(_runway_lost(baseline_runway, shock_runway), 2)

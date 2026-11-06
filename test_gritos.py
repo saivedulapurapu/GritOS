@@ -23,7 +23,7 @@ def test_analyze_endpoint(business_data):
     response = requests.post(f"{BASE_URL}/api/analyze", json=business_data)
     if response.status_code == 200:
         data = response.json()
-        print(f"✅ Analyze Success: Grit Score: {data['grit_score']}, Prob: {data['survival_prob']}%")
+        print(f"✅ Analyze Success: Grit Score: {data['grit_score']}, Runway-decay estimate: {data['runway_decay_estimate']}%")
         print(f"Advice samples: {data['advice']}")
     else:
         try:

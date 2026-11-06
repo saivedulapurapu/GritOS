@@ -1,7 +1,8 @@
 """process_business_state wiring — runway-decay estimate, sensitivity, fragility tiers, sentinel.
 
 Calls the pipeline function directly (no server, no LLM: process_business_state
-never calls Groq).
+never calls Groq). Default ad_spend_behaviour is "fixed" (Fix 2b); tests that
+need the opt-in "scales" mode say so.
 """
 import pytest
 
@@ -27,27 +28,35 @@ def analyse(**overrides):
     return process_business_state(FullBusinessState(**{**PROFITABLE, **overrides}))
 
 
-# ---------- Runway-decay estimate uses the SHOCKED runway (Fix 1) ----------
+# ---------- Runway-decay estimate uses the SHOCKED runway ----------
 
 def test_estimate_falls_sharply_under_total_revenue_loss():
-    # 100% revenue drop: vol 0 -> net = -200,000 (fixed costs only)
-    # shocked runway = 500,000 / 200,000 = 2.5 months
-    # λ = 2.5 x BASELINE factor (Resilient 1.0) = 2.5  ->  exp(-6 / 2.5) = exp(-2.4) = 9.07% -> 9.1
-    # (if the stressed Critical factor 0.6 were used: λ = 1.5 -> 1.8%; it must not be)
+    # Default "fixed" ads: revenue 0, ads still 300,000 -> contribution -300,000
+    # net = -300,000 - 200,000 = -500,000 -> runway = 500,000 / 500,000 = 1.0 month
+    # λ = 1.0 x BASELINE factor (Resilient 1.0) = 1.0 -> exp(-6) = 0.25% -> 0.2
     calm = analyse()
     shocked = analyse(rev_shock=100)
     assert calm["fragility"]["class"] == "Resilient"
     assert calm["runway_decay_estimate"] == 99.9
-    assert shocked["simulation"]["runway"] == pytest.approx(2.5)
-    assert shocked["runway_decay_estimate"] == 9.1
+    assert shocked["simulation"]["runway"] == pytest.approx(1.0)
+    assert shocked["runway_decay_estimate"] == 0.2
+
+
+def test_total_revenue_loss_when_ads_scale():
+    # "scales": vol 0 -> all variable costs 0 -> net = -200,000 -> runway 2.5
+    # λ = 2.5 x BASELINE factor 1.0 -> exp(-6 / 2.5) = 9.07% -> 9.1
+    # (if the stressed Critical factor 0.6 were used: λ = 1.5 -> 1.8%; it must not be)
+    r = analyse(rev_shock=100, ad_spend_behaviour="scales")
+    assert r["simulation"]["runway"] == pytest.approx(2.5)
+    assert r["runway_decay_estimate"] == 9.1
 
 
 def test_estimate_is_computed_from_shocked_runway():
-    # 50% revenue drop + 20% ad-cost spike: vol 0.5
-    # rev 500,000 | ads 300,000*0.5*1.2 = 180,000 | COGS 200,000 | ship 25,000 | RTO 10,000
-    # contribution 85,000; net = 85,000 - 200,000 = -115,000 -> runway 500,000/115,000 = 4.35
+    # 50% revenue drop + 20% ad-cost spike, "fixed" ads: vol 0.5
+    # rev 500,000 | ads 300,000 x 1.2 = 360,000 | COGS 200,000 | ship 25,000 | RTO 10,000
+    # contribution -95,000; net = -95,000 - 200,000 = -295,000 -> runway 500,000/295,000 = 1.69
     r = analyse(rev_shock=50, kak_shock=20)
-    assert r["simulation"]["runway"] == pytest.approx(4.35, abs=0.01)
+    assert r["simulation"]["runway"] == pytest.approx(1.69, abs=0.01)
     expected = runway_decay.calculate_runway_decay_estimate(r["simulation"]["runway"], r["fragility"]["class"])
     assert r["runway_decay_estimate"] == expected
 
@@ -73,6 +82,25 @@ def test_old_survival_field_names_are_gone():
     assert "survival_prob" not in r and "baseline_survival_prob" not in r
 
 
+# ---------- ad_spend_behaviour reaches the shock engine ----------
+
+def test_ad_spend_behaviour_defaults_to_fixed():
+    assert FullBusinessState(**PROFITABLE).ad_spend_behaviour == "fixed"
+
+
+def test_fixed_ads_shorten_runway_vs_scaling_ads():
+    # Revenue -50%: fixed -> net -235,000 -> runway 2.13 | scales -> net -85,000 -> runway 5.88
+    fixed = analyse(rev_shock=50)
+    scales = analyse(rev_shock=50, ad_spend_behaviour="scales")
+    assert fixed["simulation"]["runway"] == pytest.approx(2.13)
+    assert scales["simulation"]["runway"] == pytest.approx(5.88)
+
+
+def test_invalid_ad_spend_behaviour_rejected_by_schema():
+    with pytest.raises(ValueError):
+        FullBusinessState(**PROFITABLE, ad_spend_behaviour="sometimes")
+
+
 # ---------- Fragility tiers: baseline vs stressed ----------
 
 def test_baseline_tier_comes_from_baseline_not_shock():
@@ -80,9 +108,10 @@ def test_baseline_tier_comes_from_baseline_not_shock():
     assert analyse()["fragility"]["class"] == analyse(rev_shock=100)["fragility"]["class"]
 
 
-def test_revenue_wipeout_baseline_resilient_stressed_critical():
-    # Shocked: revenue 0 -> margin 0% (guarded) -> "0% or negative"; runway 2.5 -> "under 3 months"
-    r = analyse(rev_shock=100)
+@pytest.mark.parametrize("behaviour", ["fixed", "scales"])
+def test_revenue_wipeout_baseline_resilient_stressed_critical(behaviour):
+    # Shocked: revenue 0 -> margin 0% (guarded) -> "0% or negative"; runway 1.0 (fixed) / 2.5 (scales)
+    r = analyse(rev_shock=100, ad_spend_behaviour=behaviour)
     assert r["fragility"]["class"] == "Resilient"
     assert r["fragility"]["stressed_class"] == "Critical"
     assert "Runway under 3 months" in r["fragility"]["stressed_reasons"]
@@ -96,12 +125,16 @@ def test_ad_cost_spike_stressed_critical():
     assert r["fragility"]["stressed_class"] == "Critical"
 
 
-def test_mild_shock_keeps_resilient():
-    # Revenue -20%: vol 0.8 -> rev 800,000, variable costs scale -> contribution 184,000 (23%)
-    # net = 184,000 - 200,000 = -16,000 -> runway 500,000/16,000 = 31.25 months (>= 12), ad ratio 0.3
-    r = analyse(rev_shock=20)
-    assert r["simulation"]["runway"] == pytest.approx(31.25)
-    assert r["fragility"]["stressed_class"] == "Resilient"
+def test_mild_shock_tier_depends_on_ad_behaviour():
+    # Revenue -20%, vol 0.8: rev 800,000 | COGS 320,000 | ship 40,000 | RTO 16,000
+    # scales: ads 240,000 -> contribution 184,000 (23%) -> net -16,000 -> runway 31.25, ad 0.3 -> Resilient
+    # fixed:  ads 300,000 -> contribution 124,000 (15.5%) -> net -76,000 -> runway 6.58, ad 0.375 -> Stable
+    scales = analyse(rev_shock=20, ad_spend_behaviour="scales")
+    fixed = analyse(rev_shock=20)
+    assert scales["simulation"]["runway"] == pytest.approx(31.25)
+    assert scales["fragility"]["stressed_class"] == "Resilient"
+    assert fixed["simulation"]["runway"] == pytest.approx(6.58)
+    assert fixed["fragility"]["stressed_class"] == "Stable"
 
 
 def test_no_shock_stressed_equals_baseline():
@@ -121,7 +154,7 @@ def test_loss_maker_from_audit_is_critical():
     assert r["runway_decay_estimate"] == 0.1
 
 
-# ---------- Sensitivity covers all shocks and is returned (Fix 1) ----------
+# ---------- Sensitivity and months lost ----------
 
 def test_sensitivity_is_returned_in_fragility():
     r = analyse()
@@ -134,14 +167,14 @@ def test_sensitivity_is_returned_in_fragility():
     [
         # ads 450,000 -> contribution 80,000 -> net -120,000 -> 500,000/120,000 = 4.17
         ("kak_shock", 4.17),
-        # vol 0.5 -> contribution 115,000 -> net -85,000 -> 500,000/85,000 = 5.88
-        ("rev_shock", 5.88),
+        # fixed ads: rev 500,000 - ads 300,000 - COGS 200,000 - 35,000 = -35,000
+        #   -> net -235,000 -> 500,000/235,000 = 2.13
+        ("rev_shock", 2.13),
         # COGS 600,000 -> contribution 30,000 -> net -170,000 -> 500,000/170,000 = 2.94
         ("cogs_shock", 2.94),
     ],
 )
 def test_every_shock_type_moves_sensitivity(shock, expected_runway):
-    # Previously only rev_shock counted, so ad-cost and COGS shocks gave sensitivity 0
     r = analyse(**{shock: 50})
     assert r["simulation"]["runway"] == pytest.approx(expected_runway, abs=0.01)
     # (12 - runway) / 50
@@ -154,7 +187,21 @@ def test_sensitivity_uses_sum_of_all_shocks():
     assert r["fragility"]["sensitivity"] == get_shock_sensitivity(None, r["simulation"]["runway"], 60)
 
 
-# ---------- Runway / days sentinel is None end-to-end (Fix 1) ----------
+def test_months_lost_uses_12_month_horizon():
+    # Baseline no burn -> counts as 12; shocked runway 1.0 -> 12 - 1.0 = 11.0 months lost
+    r = analyse(rev_shock=100)
+    assert r["simulation"]["runway_lost_months"] == pytest.approx(11.0)
+    # Consistent with sensitivity: 11.0 / 100 = 0.11
+    assert r["fragility"]["sensitivity"] == pytest.approx(0.11)
+
+
+def test_months_lost_zero_when_runway_stays_beyond_horizon():
+    # scales, revenue -20%: runway 31.25 -> both capped at 12 -> 0 lost
+    r = analyse(rev_shock=20, ad_spend_behaviour="scales")
+    assert r["simulation"]["runway_lost_months"] == 0
+
+
+# ---------- Runway / days sentinel is None end-to-end ----------
 
 def test_profitable_runways_are_none():
     r = analyse()
@@ -163,8 +210,8 @@ def test_profitable_runways_are_none():
 
 
 def test_zero_sales_velocity_does_not_crash_pipeline():
-    # days_to_liquidate None -> treated as worst inventory bucket (penalty 0.85)
+    # days_to_liquidate None -> treated as worst inventory bucket (x0.85)
     r = analyse(daily_velocity=0)
     assert r["inventory"]["days_to_liquidate"] is None
     assert r["inventory"]["risk_level"] == "RED"
-    assert r["grit_score"] >= 0
+    assert r["grit_breakdown"]["inventory_multiplier"] == 0.85

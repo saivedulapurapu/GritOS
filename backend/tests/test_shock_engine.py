@@ -30,14 +30,15 @@ def test_no_shock_reproduces_baseline():
     assert r["runway"] is None
 
 
-def test_revenue_drop_scales_costs_with_volume_ASSUMPTION():
-    # MODEL ASSUMPTION: ad spend scales with volume. Debatable — in reality ad spend
-    #  is often fixed short-term, so CAC rises when demand falls. Revisit in Fix 3.
+def test_revenue_drop_scales_costs_with_volume_when_ads_scale():
+    # Fix 2b decision: ad spend behaviour is now an explicit parameter.
+    #  Default "fixed" (ad budget does not flex short-term, so CAC rises as demand
+    #  falls); "scales" is opt-in. This test pins the opt-in "scales" mode.
     # vol = 1 - 0.50 = 0.5
     # rev 500,000 | ads 150,000 | COGS 200,000 | ship 25,000 | RTO 10,000
     # contribution = 500,000 - 385,000 = 115,000; fixed costs do NOT scale
     # net = 115,000 - 150,000 = -35,000  ->  runway = 500,000 / 35,000 = 14.2857 -> 14.29
-    r = apply_shocks(BASE, 0, 50, 0)
+    r = apply_shocks(BASE, 0, 50, 0, ad_spend_behaviour="scales")
     assert r["rev"] == money(500_000)
     assert r["net_profit"] == money(-35_000)
     assert r["runway"] == money(14.29)
@@ -78,24 +79,67 @@ def test_cogs_shock_only_raises_cogs():
 
 
 def test_combined_shocks_compound():
-    # vol = 0.8
+    # ad_spend_behaviour="scales"; vol = 0.8
     # rev 800,000 | ads 300,000*0.8*1.5 = 360,000 | COGS 400,000*0.8*1.25 = 400,000
     # ship 40,000 | RTO 16,000
     # contribution = 800,000 - 816,000 = -16,000; net = -16,000 - 150,000 = -166,000
     # runway = 500,000 / 166,000 = 3.0120 -> 3.01
-    r = apply_shocks(BASE, 50, 20, 25)
+    r = apply_shocks(BASE, 50, 20, 25, ad_spend_behaviour="scales")
     assert r["rev"] == money(800_000)
     assert r["net_profit"] == money(-166_000)
     assert r["runway"] == money(3.01)
 
 
 def test_total_revenue_loss_leaves_only_fixed_costs():
-    # vol = 0 -> all revenue and variable costs are 0; net = -150,000 (fixed costs)
-    # runway = 500,000 / 150,000 = 3.333 -> 3.33
-    r = apply_shocks(BASE, 0, 100, 0)
+    # ad_spend_behaviour="scales": vol = 0 -> all revenue and variable costs are 0
+    # net = -150,000 (fixed costs); runway = 500,000 / 150,000 = 3.333 -> 3.33
+    r = apply_shocks(BASE, 0, 100, 0, ad_spend_behaviour="scales")
     assert r["rev"] == money(0)
     assert r["net_profit"] == money(-150_000)
     assert r["runway"] == money(3.33)
+
+
+# ---------- ad_spend_behaviour="fixed" (default) ----------
+
+def test_default_ad_spend_behaviour_is_fixed():
+    assert apply_shocks(BASE, 0, 50, 0) == apply_shocks(BASE, 0, 50, 0, ad_spend_behaviour="fixed")
+
+
+def test_fixed_ad_spend_does_not_fall_with_revenue():
+    # vol 0.5: rev 500,000 | ads stay 300,000 | COGS 200,000 | ship 25,000 | RTO 10,000
+    # contribution = 500,000 - 535,000 = -35,000; net = -35,000 - 150,000 = -185,000
+    # runway = 500,000 / 185,000 = 2.7027 -> 2.70; ad ratio = 300,000 / 500,000 = 0.6
+    r = apply_shocks(BASE, 0, 50, 0)
+    assert r["net_profit"] == money(-185_000)
+    assert r["runway"] == money(2.70)
+    assert r["ad_spend_ratio"] == pytest.approx(0.6)
+
+
+def test_fixed_ad_spend_total_revenue_loss():
+    # rev 0, ads still 300,000 -> contribution -300,000; net = -450,000
+    # runway = 500,000 / 450,000 = 1.111 -> 1.11
+    r = apply_shocks(BASE, 0, 100, 0)
+    assert r["net_profit"] == money(-450_000)
+    assert r["runway"] == money(1.11)
+
+
+def test_fixed_ad_spend_combined_shocks():
+    # vol 0.8: rev 800,000 | ads 300,000 x 1.5 = 450,000 | COGS 400,000*0.8*1.25 = 400,000
+    # ship 40,000 | RTO 16,000 -> contribution = 800,000 - 906,000 = -106,000
+    # net = -256,000 -> runway = 500,000 / 256,000 = 1.953 -> 1.95
+    r = apply_shocks(BASE, 50, 20, 25)
+    assert r["net_profit"] == money(-256_000)
+    assert r["runway"] == money(1.95)
+
+
+def test_ad_behaviour_irrelevant_without_revenue_drop():
+    # Only the CAC shock: volume is 1, so both modes agree
+    assert apply_shocks(BASE, 100, 0, 0, "fixed") == apply_shocks(BASE, 100, 0, 0, "scales")
+
+
+def test_unknown_ad_spend_behaviour_rejected():
+    with pytest.raises(ValueError):
+        apply_shocks(BASE, 0, 50, 0, ad_spend_behaviour="sometimes")
 
 
 def test_revenue_drop_over_100_clamps_volume_at_zero():

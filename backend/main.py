@@ -3,7 +3,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
-from typing import Dict, Any
+from typing import Dict, Any, Literal
 
 # Import local modules
 import financial_engine
@@ -11,6 +11,7 @@ import shock_engine
 import capital_lock
 import dependency_index
 import fragility_model
+import grit
 import llm_advisor
 import runway_decay
 
@@ -53,6 +54,7 @@ class FullBusinessState(BaseModel):
     kak_shock: float = 0
     rev_shock: float = 0
     cogs_shock: float = 0
+    ad_spend_behaviour: Literal["fixed", "scales"] = "fixed"  # see shock_engine.apply_shocks
     # Inventory (Component 3)
     stock_units: int = 1000
     cost_per_unit: float = 500
@@ -78,21 +80,23 @@ def process_business_state(state: FullBusinessState):
     bottom_line = financial_engine.calculate_net_metrics(baseline['contribution_margin'], state.fixed_costs, state.cash_in_bank)
     
     # 2. Shock Simulation
-    shock_results = shock_engine.apply_shocks(state.dict(), state.kak_shock, state.rev_shock, state.cogs_shock)
+    shock_results = shock_engine.apply_shocks(
+        state.dict(), state.kak_shock, state.rev_shock, state.cogs_shock, state.ad_spend_behaviour
+    )
     
     # 3. Capital Lock
     lock_data = capital_lock.calculate_capital_lock(state.stock_units, state.cost_per_unit, state.daily_velocity)
     
     # 4. Fragility tier (baseline structure) & shock sensitivity
-    # Runways are None when there is no cash burn; the Grit penalty below needs numbers.
     ad_spend_ratio = state.ad_spend / state.revenue if state.revenue > 0 else 0
-    b_runway = financial_engine.runway_as_number(bottom_line['runway_months'])
-    s_runway = financial_engine.runway_as_number(shock_results['runway'])
     total_shock_pct = state.kak_shock + state.rev_shock + state.cogs_shock
 
     fragility = fragility_model.classify_fragility(baseline['margin_percent'], bottom_line['runway_months'], ad_spend_ratio)
     sensitivity = fragility_model.get_shock_sensitivity(bottom_line['runway_months'], shock_results['runway'], total_shock_pct)
     fragility['sensitivity'] = sensitivity
+    shock_results['runway_lost_months'] = fragility_model.runway_lost_within_horizon(
+        bottom_line['runway_months'], shock_results['runway']
+    )
 
     # Same rules on the shocked figures: how the business looks under this scenario.
     stressed = fragility_model.classify_fragility(
@@ -108,35 +112,22 @@ def process_business_state(state: FullBusinessState):
     trajectory = runway_decay.calculate_runway_decay_trajectory(shock_results['runway'], fragility['class'])
     baseline_runway_decay_estimate = runway_decay.calculate_runway_decay_estimate(bottom_line['runway_months'], fragility['class'])
 
-    # Grit Score: weighted average of fragility score and baseline runway-decay estimate
-    baseline_grit = round((fragility['score'] * 0.5) + (baseline_runway_decay_estimate * 0.5), 1)
-    
-    # Calculated Displayed Grit
-    shocked_grit = baseline_grit
-    if state.kak_shock > 0 or state.rev_shock > 0 or state.cogs_shock > 0:
-        rev_impact = (state.rev_shock / 100) * 0.6
-        runway_loss = (b_runway - s_runway) / b_runway if b_runway > 0 else 1
-        runway_impact = max(0, runway_loss) * 0.4
-        total_penalty = min(0.9, rev_impact + runway_impact)
-        shocked_grit = round(baseline_grit * (1 - total_penalty), 1)
-    
-    # 6. Dependency 
+    # 6. Dependency
     dependency = dependency_index.get_dependency_score(
         state.top_platform_rev, state.revenue, state.top_supplier_spend, state.total_purchases
     )
-    
     dep_max = max(dependency['platform_dependency'], dependency['supplier_dependency'])
-    dep_penalty = 1.0
-    if dep_max > 80: dep_penalty = 0.80
-    elif dep_max > 50: dep_penalty = 0.90
-    
     days_to_liquidate = lock_data['days_to_liquidate']  # None = no sales velocity
-    inv_penalty = 1.0
-    if days_to_liquidate is None or days_to_liquidate > 60: inv_penalty = 0.85
-    elif days_to_liquidate > 30: inv_penalty = 0.95
-    
-    final_grit = shocked_grit * dep_penalty * inv_penalty
-    
+
+    # 7. Grit Score: the same function on the baseline and on the stressed state.
+    # Weights, multipliers and the short-runway cap are justified in grit.py.
+    baseline_grit = grit.compute_grit(
+        fragility['score'], baseline_runway_decay_estimate, dep_max, days_to_liquidate, bottom_line['runway_months']
+    )
+    scenario_grit = grit.compute_grit(
+        stressed['score'], runway_decay_estimate, dep_max, days_to_liquidate, shock_results['runway']
+    )
+
     return {
         "baseline": {**baseline, **bottom_line},
         "simulation": shock_results,
@@ -146,8 +137,9 @@ def process_business_state(state: FullBusinessState):
         "runway_decay_estimate": runway_decay_estimate,
         "baseline_runway_decay_estimate": baseline_runway_decay_estimate,
         "trajectory": trajectory,
-        "grit_score": round(max(0, final_grit), 1),
-        "baseline_grit": baseline_grit,
+        "grit_score": scenario_grit['score'],
+        "baseline_grit": baseline_grit['score'],
+        "grit_breakdown": scenario_grit,
         "ad_spend_ratio": ad_spend_ratio
     }
 

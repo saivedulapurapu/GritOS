@@ -157,3 +157,47 @@ def assess_manual_inputs(state, analysis, report=None):
 
 def build_report(state, analysis):
     return assess_manual_inputs(state, analysis).to_dict()
+
+
+# ---------------------------------------------------------------------------
+# SEC EDGAR extension: provenance and source-data dimensions
+# ---------------------------------------------------------------------------
+
+# Credit given to each provenance status in the 'provenance' dimension score
+PROVENANCE_CREDIT = {"REAL": 1.0, "DERIVED": 0.8, "PROXY": 0.5, "ASSUMED": 0.3, "MISSING": 0.0}
+
+
+def assess_edgar(report, mapping, source):
+    """Add 'provenance' and 'source' dimensions for an analysis built from SEC filings.
+
+    provenance score = 100 x mean credit over the GritOS inputs
+                       (REAL 1.0, DERIVED 0.8, PROXY 0.5, ASSUMED 0.3, MISSING 0)
+    source score     = penalty-based: restated values (info), quarters derived from
+                       FY / YTD figures (info), non-primary XBRL tag used (info),
+                       mapping adjustments (warning), validation concepts missing (info)
+    """
+    prov = mapping["provenance"]
+    credits = [PROVENANCE_CREDIT[p["status"]] for p in prov.values()]
+    report.set_score("provenance", 100 * sum(credits) / len(credits) if credits else 0)
+    for field, p in prov.items():
+        if p["status"] in ("PROXY", "ASSUMED"):
+            report.add("provenance", p["status"].lower(), "info", f"{field} is {p['status']}: {p['note']}", field)
+        elif p["status"] == "MISSING":
+            report.add("provenance", "missing", "warning", f"{field} is MISSING: {p['note']}", field)
+
+    report.touch("source")
+    for r in source.get("restatements", []):
+        report.add("source", f"restated_{r['kind']}", "info",
+                   f"{r['concept']} for {r['period_end']} was re-reported: {r['original_value']:,.0f} -> "
+                   f"{r['restated_value']:,.0f} ({r['kind']}); latest filing used", r["concept"])
+    for c in source.get("derived_concepts", []):
+        report.add("source", "derived_period", "info",
+                   f"{c} for this quarter is derived from annual / year-to-date figures", c)
+    for c, tag in source.get("non_primary_tags", {}).items():
+        report.add("source", "non_primary_tag", "info", f"{c} taken from fallback tag {tag}", c)
+    for a in mapping.get("adjustments", []):
+        report.add("source", "mapping_adjustment", "warning", a)
+    for c in source.get("missing_validation_concepts", []):
+        report.add("source", "validation_concept_missing", "info",
+                   f"{c} not reported: burn-vs-cash-flow validation incomplete for this quarter", c)
+    return report

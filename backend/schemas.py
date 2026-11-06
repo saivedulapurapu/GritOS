@@ -71,6 +71,16 @@ class FullBusinessState(BaseModel):
         return self
 
 
+class CompanyScenario(BaseModel):
+    """Optional shocks for POST /api/analyze/company/{ticker}; the inputs come from SEC filings."""
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
+
+    cac_shock: float = Field(0, ge=0, le=MAX_COST_INCREASE_PCT)
+    rev_shock: float = Field(0, ge=0, le=MAX_REVENUE_DROP_PCT)
+    cogs_shock: float = Field(0, ge=0, le=MAX_COST_INCREASE_PCT)
+    ad_spend_behaviour: Literal["fixed", "scales"] = "fixed"
+
+
 class ChatMessage(BaseModel):
     model_config = ConfigDict(extra="forbid")
 

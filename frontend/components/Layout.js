@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { BarChart3, Activity, ShieldAlert, Cpu, MessageSquare, Menu, X, Rocket, History } from 'lucide-react';
+import { BarChart3, Activity, ShieldAlert, Cpu, MessageSquare, Menu, X, Rocket, History, Building2 } from 'lucide-react';
 import { useBusiness } from '../context/BusinessContext';
 
 const Layout = ({ children }) => {
@@ -15,6 +15,7 @@ const Layout = ({ children }) => {
         { name: 'Stress Test', href: '/stress', icon: Rocket },
         { name: 'Risk Matrix', href: '/risk', icon: ShieldAlert },
         { name: 'AI Strategy', href: '/advisor', icon: MessageSquare },
+        { name: 'Real Companies', href: '/companies', icon: Building2 },
         { name: 'History', href: '/history', icon: History },
     ];
 

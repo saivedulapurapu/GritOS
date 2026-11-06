@@ -55,3 +55,17 @@ def test_days_rounded_to_one_dp():
     # 1,000 / 3 = 333.333...  ->  333.3
     r = calculate_capital_lock(1_000, 10, 3)
     assert r["days_to_liquidate"] == 333.3
+
+
+def test_no_stock_is_zero_days_green():
+    # nothing held -> nothing locked, regardless of velocity
+    r = calculate_capital_lock(0, 100, 0)
+    assert r["days_to_liquidate"] == 0
+    assert r["risk_level"] == "GREEN"
+    assert r["locked_capital"] == 0
+
+
+def test_currency_symbol_in_warning():
+    # 7,000 x 100 = 700,000 locked, 70 days -> RED
+    assert calculate_capital_lock(7_000, 100, 100, "$")["warning"].startswith("$700,000")
+    assert calculate_capital_lock(7_000, 100, 100)["warning"].startswith("₹700,000")

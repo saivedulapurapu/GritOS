@@ -27,7 +27,7 @@ def test_analyze_serialises_no_burn_runway_as_null(monkeypatch):
     monkeypatch.setattr(main.llm_advisor, "generate_strategic_advice", lambda metrics: ["stub"])
     # 100% ad-cost spike: ads 600,000 -> contribution -70,000 -> net -220,000
     # shocked runway = 500,000 / 220,000 = 2.27; baseline net +80,000 -> no burn -> null
-    r = api.post("/api/analyze", json={**BASE, "kak_shock": 100})
+    r = api.post("/api/analyze", json={**BASE, "cac_shock": 100})
     assert r.status_code == 200
     body = r.json()
     assert body["baseline"]["runway_months"] is None

@@ -3,6 +3,7 @@ import Layout from '../components/Layout';
 import { useBusiness } from '../context/BusinessContext';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { TrendingUp, AlertCircle, CheckCircle2, Zap } from 'lucide-react';
+import DataQualityCard from '../components/DataQualityCard';
 
 export default function Overview() {
     const { data, loading, randomizeMockData } = useBusiness();
@@ -113,6 +114,10 @@ export default function Overview() {
                         </div>
                     </div>
                 </div>
+            </div>
+
+            <div className="mb-8">
+                <DataQualityCard report={data?.data_quality} />
             </div>
 
             {/* Runway-Decay Curve */}

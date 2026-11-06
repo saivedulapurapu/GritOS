@@ -55,7 +55,7 @@ def test_estimate_is_computed_from_shocked_runway():
     # 50% revenue drop + 20% ad-cost spike, "fixed" ads: vol 0.5
     # rev 500,000 | ads 300,000 x 1.2 = 360,000 | COGS 200,000 | ship 25,000 | RTO 10,000
     # contribution -95,000; net = -95,000 - 200,000 = -295,000 -> runway 500,000/295,000 = 1.69
-    r = analyse(rev_shock=50, kak_shock=20)
+    r = analyse(rev_shock=50, cac_shock=20)
     assert r["simulation"]["runway"] == pytest.approx(1.69, abs=0.01)
     expected = runway_decay.calculate_runway_decay_estimate(r["simulation"]["runway"], r["fragility"]["class"])
     assert r["runway_decay_estimate"] == expected
@@ -120,7 +120,7 @@ def test_revenue_wipeout_baseline_resilient_stressed_critical(behaviour):
 
 def test_ad_cost_spike_stressed_critical():
     # CAC +100%: ads 600,000 -> contribution -70,000 -> margin -7%; runway 500,000/270,000 = 1.85
-    r = analyse(kak_shock=100)
+    r = analyse(cac_shock=100)
     assert r["fragility"]["class"] == "Resilient"
     assert r["fragility"]["stressed_class"] == "Critical"
 
@@ -166,7 +166,7 @@ def test_sensitivity_is_returned_in_fragility():
     "shock, expected_runway",
     [
         # ads 450,000 -> contribution 80,000 -> net -120,000 -> 500,000/120,000 = 4.17
-        ("kak_shock", 4.17),
+        ("cac_shock", 4.17),
         # fixed ads: rev 500,000 - ads 300,000 - COGS 200,000 - 35,000 = -35,000
         #   -> net -235,000 -> 500,000/235,000 = 2.13
         ("rev_shock", 2.13),
@@ -183,7 +183,7 @@ def test_every_shock_type_moves_sensitivity(shock, expected_runway):
 
 
 def test_sensitivity_uses_sum_of_all_shocks():
-    r = analyse(kak_shock=20, rev_shock=30, cogs_shock=10)
+    r = analyse(cac_shock=20, rev_shock=30, cogs_shock=10)
     assert r["fragility"]["sensitivity"] == get_shock_sensitivity(None, r["simulation"]["runway"], 60)
 
 
@@ -210,8 +210,9 @@ def test_profitable_runways_are_none():
 
 
 def test_zero_sales_velocity_does_not_crash_pipeline():
-    # days_to_liquidate None -> treated as worst inventory bucket (x0.85)
-    r = analyse(daily_velocity=0)
-    assert r["inventory"]["days_to_liquidate"] is None
-    assert r["inventory"]["risk_level"] == "RED"
-    assert r["grit_breakdown"]["inventory_multiplier"] == 0.85
+    # No stock and no sales: nothing locked -> 0 days, GREEN, no inventory haircut.
+    # (Stock > 0 with zero velocity is now rejected by the schema: see test_schemas.py.)
+    r = analyse(stock_units=0, daily_velocity=0)
+    assert r["inventory"]["days_to_liquidate"] == 0
+    assert r["inventory"]["risk_level"] == "GREEN"
+    assert r["grit_breakdown"]["inventory_multiplier"] == 1.0

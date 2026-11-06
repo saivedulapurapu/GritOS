@@ -82,6 +82,12 @@ const Layout = ({ children }) => {
                 </header>
 
                 <div className="p-10 max-w-7xl mx-auto">
+                    {data?.error && (
+                        <div className="mb-8 p-4 rounded-2xl bg-red-500/10 border border-red-500/20 text-sm text-red-300">
+                            <div className="font-bold">{data.message}</div>
+                            {(data.details || []).map((d) => <div key={d}>{d}</div>)}
+                        </div>
+                    )}
                     {children}
                 </div>
             </main>

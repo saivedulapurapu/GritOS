@@ -105,10 +105,10 @@ CLEAN = {"top_platform_rev": 0, "top_supplier_spend": 0, "stock_units": 100, "da
 @pytest.mark.parametrize(
     "shocks",
     [
-        {"kak_shock": 100},                      # runway 1.85
+        {"cac_shock": 100},                      # runway 1.85
         {"rev_shock": 100},                      # runway 1.0 (fixed) / 2.5 (scales)
         {"cogs_shock": 50},                      # runway 2.94
-        {"rev_shock": 50, "kak_shock": 20},      # runway 1.69 (fixed)
+        {"rev_shock": 50, "cac_shock": 20},      # runway 1.69 (fixed)
         {"fixed_costs": 600_000},                # audit loss-maker, runway 1.35, no shock
     ],
 )
@@ -124,9 +124,9 @@ def test_no_shock_grit_equals_baseline_grit():
 
 
 def test_baseline_grit_includes_multipliers():
-    # Defaults: platform 800,000 / 1,000,000 = 80% -> x0.9; stock 1,000 / 10 per day = 100 days -> x0.85
+    # platform 800,000 / 1,000,000 = 80% -> x0.9; default stock 1,000 / 10 per day = 100 days -> x0.85
     # base = 0.5 x 100 + 0.5 x 99.9 = 99.95 -> 99.95 x 0.9 x 0.85 = 76.46 -> 76.5
-    r = analyse()
+    r = analyse(top_platform_rev=800_000)
     assert r["baseline_grit"] == 76.5
     assert r["grit_breakdown"]["concentration_multiplier"] == 0.9
     assert r["grit_breakdown"]["inventory_multiplier"] == 0.85
@@ -135,5 +135,5 @@ def test_baseline_grit_includes_multipliers():
 def test_cac_spike_grit_no_longer_generous():
     # Before Fix 2b: 46.0 at 1.85 months runway.
     # Now: stressed tier Critical (20), estimate 3.9 -> base 11.95 -> x0.9 x0.85 = 9.14 -> 9.1
-    r = analyse(kak_shock=100)
+    r = analyse(cac_shock=100, top_platform_rev=800_000)
     assert r["grit_score"] == 9.1

@@ -8,6 +8,7 @@ export const BusinessProvider = ({ children }) => {
     const [loading, setLoading] = useState(false);
     const [data, setData] = useState(null);
     const [business, setBusiness] = useState({
+        currency: 'INR',  // 'INR' | 'USD' — backend schemas.FullBusinessState
         revenue: 1000000,
         top_platform_rev: 800000,
         ad_spend: 300000,
@@ -24,7 +25,7 @@ export const BusinessProvider = ({ children }) => {
     });
 
     const [shocks, setShocks] = useState({
-        kak_shock: 0,
+        cac_shock: 0,
         rev_shock: 0,
         cogs_shock: 0,
         ad_spend_behaviour: 'fixed'  // 'fixed' | 'scales' — see backend shock_engine.apply_shocks
@@ -45,6 +46,11 @@ export const BusinessProvider = ({ children }) => {
             if (response.ok) {
                 const result = await response.json();
                 setData(result);
+            } else if (response.status === 422) {
+                // Validation errors from backend schemas.py: show them instead of a generic failure
+                const body = await response.json();
+                const messages = (body.detail || []).map((e) => `${(e.loc || []).slice(1).join('.') || 'input'}: ${e.msg}`);
+                setData({ error: true, message: 'Invalid input', details: messages });
             } else {
                 setData({ error: true, message: "Engine Offline" });
             }

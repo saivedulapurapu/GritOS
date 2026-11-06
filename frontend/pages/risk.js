@@ -3,9 +3,11 @@ import Layout from '../components/Layout';
 import { useBusiness } from '../context/BusinessContext';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { ShieldAlert, Package, Globe, UserCheck, Info } from 'lucide-react';
+import { currencySymbol } from '../lib/currency';
 
 export default function RiskMatrix() {
     const { business, setBusiness, data, fetchAnalysis } = useBusiness();
+    const sym = currencySymbol(business.currency);
 
     const handleInventoryChange = (field, value) => {
         const numValue = parseFloat(value) || 0;
@@ -30,7 +32,7 @@ export default function RiskMatrix() {
                 <div className="bg-[#1e293b] p-4 rounded-xl border border-white/10 shadow-2xl">
                     <p className="text-sm font-bold text-gray-400 mb-1">{payload[0].name}</p>
                     <p className="text-xl font-black text-white">
-                        ₹{payload[0].value.toLocaleString()}
+                        {sym}{payload[0].value.toLocaleString()}
                     </p>
                 </div>
             );
@@ -92,7 +94,7 @@ export default function RiskMatrix() {
                                 />
                             </div>
                             <div>
-                                <label className="text-xs font-bold text-gray-500 uppercase tracking-tighter">Cost Per Unit (₹)</label>
+                                <label className="text-xs font-bold text-gray-500 uppercase tracking-tighter">Cost Per Unit ({sym})</label>
                                 <input
                                     type="number"
                                     value={business.cost_per_unit}
@@ -118,7 +120,7 @@ export default function RiskMatrix() {
                     <div className="p-6 rounded-2xl bg-white/5 border border-white/5">
                         <div className="flex justify-between items-center mb-2">
                             <span className="text-sm text-gray-400 font-bold uppercase">Locked Value</span>
-                            <span className="text-2xl font-black text-red-500">₹{data?.inventory?.locked_capital?.toLocaleString() || '0'}</span>
+                            <span className="text-2xl font-black text-red-500">{sym}{data?.inventory?.locked_capital?.toLocaleString() || '0'}</span>
                         </div>
                         <div className="text-xs text-red-400 font-bold animate-pulse mb-1">
                             {data?.inventory?.risk_level === 'RED' && "🚨 ACTION REQUIRED: Liquidity Trap Detected"}

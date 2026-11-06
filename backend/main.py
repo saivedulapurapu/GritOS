@@ -1,25 +1,25 @@
-from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse, StreamingResponse
-from fastapi.responses import JSONResponse
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
-from typing import Dict, Any, Literal
+import logging
 
-# Import local modules
-import financial_engine
-import shock_engine
+from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse, StreamingResponse
+
 import capital_lock
+import data_quality
 import dependency_index
+import financial_engine
 import fragility_model
 import grit
 import llm_advisor
+import mock_data
 import runway_decay
+import shock_engine
+from schemas import CURRENCY_SYMBOLS, ChatRequest, FullBusinessState
+
+logger = logging.getLogger("gritos")
 
 app = FastAPI(title="GritOS Runway Intelligence API")
-
-@app.get("/")
-async def health_check():
-    return {"status": "online", "version": "2.0"}
 
 app.add_middleware(
     CORSMiddleware,
@@ -30,47 +30,22 @@ app.add_middleware(
     expose_headers=["*"]
 )
 
-from fastapi.exceptions import RequestValidationError
+
+@app.get("/")
+async def health_check():
+    return {"status": "online", "version": "2.0"}
+
+
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    print(f"DEBUG: Validation Error: {exc.errors()}")
-    return JSONResponse(
-        status_code=422,
-        content={"detail": exc.errors(), "body": exc.body},
-    )
+    # Never echo or log the request body: it may hold a business's private figures.
+    errors = [
+        {"loc": list(e.get("loc", ())), "msg": e.get("msg", ""), "type": e.get("type", "")}
+        for e in exc.errors()
+    ]
+    logger.info("Validation failed on %s: %d error(s)", request.url.path, len(errors))
+    return JSONResponse(status_code=422, content={"detail": errors})
 
-import mock_data
-
-class FullBusinessState(BaseModel):
-    # Baseline
-    revenue: float
-    ad_spend: float
-    cogs: float
-    shipping_cost: float
-    rto_cost: float = 0
-    fixed_costs: float
-    cash_in_bank: float
-    # Shocks
-    kak_shock: float = 0
-    rev_shock: float = 0
-    cogs_shock: float = 0
-    ad_spend_behaviour: Literal["fixed", "scales"] = "fixed"  # see shock_engine.apply_shocks
-    # Inventory (Component 3)
-    stock_units: int = 1000
-    cost_per_unit: float = 500
-    daily_velocity: float = 10
-    # Dependency (Component 4)
-    top_platform_rev: float = 800000
-    top_supplier_spend: float = 200000
-    total_purchases: float = 300000
-
-class ChatMessage(BaseModel):
-    role: str
-    content: str
-
-class ChatRequest(BaseModel):
-    messages: list[ChatMessage] = Field(min_length=1)  # empty list -> 422, not IndexError
-    state: FullBusinessState
 
 def process_business_state(state: FullBusinessState):
     # 1. Baseline calc
@@ -78,18 +53,20 @@ def process_business_state(state: FullBusinessState):
         state.revenue, state.ad_spend, state.cogs, state.shipping_cost, state.rto_cost
     )
     bottom_line = financial_engine.calculate_net_metrics(baseline['contribution_margin'], state.fixed_costs, state.cash_in_bank)
-    
+
     # 2. Shock Simulation
     shock_results = shock_engine.apply_shocks(
-        state.dict(), state.kak_shock, state.rev_shock, state.cogs_shock, state.ad_spend_behaviour
+        state.dict(), state.cac_shock, state.rev_shock, state.cogs_shock, state.ad_spend_behaviour
     )
-    
+
     # 3. Capital Lock
-    lock_data = capital_lock.calculate_capital_lock(state.stock_units, state.cost_per_unit, state.daily_velocity)
-    
+    lock_data = capital_lock.calculate_capital_lock(
+        state.stock_units, state.cost_per_unit, state.daily_velocity, CURRENCY_SYMBOLS[state.currency]
+    )
+
     # 4. Fragility tier (baseline structure) & shock sensitivity
     ad_spend_ratio = state.ad_spend / state.revenue if state.revenue > 0 else 0
-    total_shock_pct = state.kak_shock + state.rev_shock + state.cogs_shock
+    total_shock_pct = state.cac_shock + state.rev_shock + state.cogs_shock
 
     fragility = fragility_model.classify_fragility(baseline['margin_percent'], bottom_line['runway_months'], ad_spend_ratio)
     sensitivity = fragility_model.get_shock_sensitivity(bottom_line['runway_months'], shock_results['runway'], total_shock_pct)
@@ -129,6 +106,7 @@ def process_business_state(state: FullBusinessState):
     )
 
     return {
+        "currency": state.currency,
         "baseline": {**baseline, **bottom_line},
         "simulation": shock_results,
         "inventory": lock_data,
@@ -143,25 +121,31 @@ def process_business_state(state: FullBusinessState):
         "ad_spend_ratio": ad_spend_ratio
     }
 
+
 @app.post("/api/analyze")
 def analyze_business(state: FullBusinessState):
     analysis = process_business_state(state)
+    analysis["data_quality"] = data_quality.build_report(state, analysis)
     advice = llm_advisor.generate_strategic_advice(analysis)
     return {**analysis, "advice": advice}
+
+
 @app.get("/api/mock")
 def get_mock_business():
     return mock_data.generate_mock_business()
+
 
 @app.post("/api/chat")
 def chat_endpoint(req: ChatRequest):
     # Get full analyzed state for situational intelligence
     analysis = process_business_state(req.state)
     messages = [{"role": msg.role, "content": msg.content} for msg in req.messages]
-    
+
     return StreamingResponse(
         llm_advisor.chat_with_advisor(messages, analysis),
         media_type="text/plain"
     )
+
 
 if __name__ == "__main__":
     import uvicorn

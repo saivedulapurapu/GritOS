@@ -3,7 +3,7 @@ import financial_engine
 AD_SPEND_BEHAVIOURS = ("fixed", "scales")
 
 
-def apply_shocks(baseline_data, kak_inc_pct, revenue_drop_pct, cogs_inc_pct, ad_spend_behaviour="fixed"):
+def apply_shocks(baseline_data, cac_inc_pct, revenue_drop_pct, cogs_inc_pct, ad_spend_behaviour="fixed"):
     """
     Recalculates metrics under a stress scenario.
 
@@ -13,7 +13,7 @@ def apply_shocks(baseline_data, kak_inc_pct, revenue_drop_pct, cogs_inc_pct, ad_
                a revenue drop raises effective CAC instead of cutting spend.
                This is the cautious assumption for a stress test.
       "scales": ad spend falls in proportion to volume (CAC per order unchanged).
-    The ad-cost shock (kak_inc_pct) raises ad spend in both modes.
+    The ad-cost shock (cac_inc_pct) raises ad spend in both modes.
     """
     if ad_spend_behaviour not in AD_SPEND_BEHAVIOURS:
         raise ValueError(f"ad_spend_behaviour must be one of {AD_SPEND_BEHAVIOURS}, got {ad_spend_behaviour!r}")
@@ -33,7 +33,7 @@ def apply_shocks(baseline_data, kak_inc_pct, revenue_drop_pct, cogs_inc_pct, ad_
     
     # Ad spend follows volume only in "scales" mode; the CAC shock raises it either way
     ad_volume = vol if ad_spend_behaviour == "scales" else 1.0
-    new_cac = cac * ad_volume * (1 + (kak_inc_pct / 100))
+    new_cac = cac * ad_volume * (1 + (cac_inc_pct / 100))
     # COGS drops with volume, but price per unit increases per shock
     new_cogs = cogs * vol * (1 + (cogs_inc_pct / 100))
     

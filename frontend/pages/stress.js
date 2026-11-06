@@ -45,9 +45,9 @@ export default function StressTest() {
     };
 
     const shocksList = [
-        { id: 'kak_shock', label: 'Ad Cost (CAC) Spike (%)', min: 0, max: 200, icon: <Zap size={16} /> },
+        { id: 'cac_shock', label: 'Ad Cost (CAC) Spike (%)', min: 0, max: 300, icon: <Zap size={16} /> },
         { id: 'rev_shock', label: 'Revenue Decline (%)', min: 0, max: 100, icon: <TrendingDown size={16} /> },
-        { id: 'cogs_shock', label: 'Supply Cost Increase (%)', min: 0, max: 100, icon: <ShieldAlert size={16} /> }
+        { id: 'cogs_shock', label: 'Supply Cost Increase (%)', min: 0, max: 300, icon: <ShieldAlert size={16} /> }
     ];
 
     return (

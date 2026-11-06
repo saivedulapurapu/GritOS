@@ -17,7 +17,7 @@ def test_mock_endpoint():
 def test_analyze_endpoint(business_data):
     print("\nTesting /api/analyze...")
     # Add some shocks
-    business_data['kak_shock'] = 20
+    business_data['cac_shock'] = 20
     business_data['rev_shock'] = 10
     
     response = requests.post(f"{BASE_URL}/api/analyze", json=business_data)
